@@ -56,5 +56,26 @@
       "org_id": "org-123",
       "site_id": "site-abc"
     }
+  },
+  "org_id": "org_demo_001",
+  "site_id": "site_demo_001",
+  "ts_start_iso": "2026-01-15T07:57:51.409618Z",
+  "ts_end_iso": "2026-01-15T08:02:51.409618Z",
+  "mode": "observe_more",
+  "severity": "medium",
+  "reasons": [
+    "demo_payload"
+  ],
+  "quality": {
+    "window_sec": 300,
+    "missing_ratio": 0.0,
+    "quality_score": 0.95,
+    "anomaly_score": 0.0,
+    "notes": "demo"
+  },
+  "uncertainty": {
+    "uncertainty_score": 0.25,
+    "confidence_score": 0.75,
+    "ood_score": 0.0
   }
 }
