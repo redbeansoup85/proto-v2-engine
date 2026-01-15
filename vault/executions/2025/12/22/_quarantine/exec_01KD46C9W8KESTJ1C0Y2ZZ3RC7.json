@@ -1,0 +1,43 @@
+{
+  "schema": {
+    "name": "execution_log",
+    "version": "0.1.0"
+  },
+  "id": "01KD46C9W8KESTJ1C0Y2ZZ3RC7",
+  "ts": "2025-12-22T23:30:13Z",
+  "producer": {
+    "system": "trading_os",
+    "module": "logger",
+    "instance": "sandbox-1"
+  },
+  "hash": {
+    "algo": "sha256",
+    "value": "bd01014df3708c69ae85a7b10095c116b9181c776eb402a0918c540cc77bfdaf"
+  },
+  "run": {
+    "run_id": "01KD46C9W8KESTJ1C0Y2ZZ3RC7",
+    "strategy_card_id": "...",
+    "strategy_card_version": "1.0.0",
+    "judgment_card_id": "...",
+    "judgment_card_version": "1.0.0",
+    "context_id": ""
+  },
+  "instrument": {
+    "symbol": "BTCUSDT",
+    "venue": "binance",
+    "type": "perp"
+  },
+  "intent": {
+    "side": "LONG",
+    "planned_size": 1.0,
+    "size_unit": "contracts"
+  },
+  "risk": {
+    "sl": 0.0,
+    "tp": [],
+    "invalidation": "none"
+  },
+  "orders": [],
+  "fills": [],
+  "events": []
+}

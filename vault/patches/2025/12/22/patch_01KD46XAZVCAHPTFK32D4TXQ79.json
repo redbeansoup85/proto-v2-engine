@@ -1,0 +1,41 @@
+{
+  "schema": {
+    "name": "card_patch",
+    "version": "0.1.0"
+  },
+  "id": "01KD46XAZVCAHPTFK32D4TXQ79",
+  "ts": "2025-12-22T23:39:31Z",
+  "producer": {
+    "system": "trading_os",
+    "module": "outcome_patch",
+    "instance": "sandbox-1"
+  },
+  "target": {
+    "run_id": "01KD46DXBQ79157HRXRWWDRGGX",
+    "outcome_path": "/Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/vault/outcomes/2025/12/22/outcome_01KD46DXBQ79157HRXRWWDRGGX.json"
+  },
+  "changes": {
+    "pnl": {
+      "realized": 12.5,
+      "unrealized": 0.0,
+      "ccy": "USDT"
+    },
+    "excursions": {
+      "mae": -8.0,
+      "mfe": 15.0,
+      "ccy": "USDT"
+    },
+    "execution_quality": {
+      "slippage": 0.0,
+      "slippage_unit": "bps",
+      "latency_ms": 0
+    },
+    "labels": {
+      "result": "WIN",
+      "reason": "tp1_hit"
+    },
+    "notes": "manual fill",
+    "patched_at": "2025-12-22T23:39:31Z"
+  },
+  "notes": "Outcome patch applied (A1 flow)."
+}

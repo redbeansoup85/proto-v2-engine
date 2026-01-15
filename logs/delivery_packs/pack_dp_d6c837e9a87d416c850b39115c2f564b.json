@@ -1,0 +1,100 @@
+{
+  "headline": "[Meta-OS] DeliveryPlan READY: pp_a0e9166fdf184a709ae6e9a87d691fd5 (v0003) [NOOP] [WARN:1]",
+  "payload": {
+    "plan": {
+      "applier": "ops",
+      "approvers_used": [
+        "carol"
+      ],
+      "channel": null,
+      "evidence": {
+        "evidence_sample_ids": [
+          "ls_8a3f0fd263e741198437b801320a6d6f"
+        ],
+        "evidence_scene_ids": [
+          "scene_dc0257ecd6424418bdf9ca940195c6be"
+        ],
+        "evidence_snapshot_ids": [
+          "snap_251cfef5972e481283145b948cf184a3"
+        ],
+        "metrics": {
+          "confirmed_count": 1,
+          "false_alarm_rate": 1.0,
+          "incident_rate": 0.0,
+          "sample_count": 1,
+          "window_days": 30
+        },
+        "patch": {
+          "direction": "LESS_SENSITIVE",
+          "notes": "High false alarms with zero incidents (confirmed)."
+        },
+        "patch_type": "THRESHOLD_TUNE",
+        "rationale": "[childcare] False alarm rate 1.00 with zero incidents suggests over-sensitivity; suggest less sensitive thresholds."
+      },
+      "evidence_sample_ids": [
+        "ls_8a3f0fd263e741198437b801320a6d6f"
+      ],
+      "evidence_scene_ids": [
+        "scene_dc0257ecd6424418bdf9ca940195c6be"
+      ],
+      "evidence_snapshot_ids": [
+        "snap_251cfef5972e481283145b948cf184a3"
+      ],
+      "noop_apply": true,
+      "patch_ops": [
+        {
+          "op": "replace",
+          "path": "/thresholds/childcare/high_negative_child_emotion",
+          "value": 0.95
+        },
+        {
+          "op": "replace",
+          "path": "/thresholds/childcare/stress_pattern_detected",
+          "value": 0.95
+        }
+      ],
+      "plan_id": "dp_d6c837e9a87d416c850b39115c2f564b",
+      "policy_sha256": "f703830e5dab4cf999a0bc6b74b0dd5296bb52412e1f71b72ec8d6c275a62fd1",
+      "policy_version": 3,
+      "proposal_id": "pp_a0e9166fdf184a709ae6e9a87d691fd5",
+      "rationale": "[childcare] False alarm rate 1.00 with zero incidents suggests over-sensitivity; suggest less sensitive thresholds.",
+      "receipt_hash": "ed6ec25def622c9366eaa0307101cb4988f26a56940fddbffa04cd801e595cdd",
+      "receipt_path": "logs/applied/receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003_20251217T1306522381340000.json",
+      "recommended_actions": [
+        {
+          "notes": "2 JSONPatch ops",
+          "type": "REVIEW_POLICY_CHANGE"
+        },
+        {
+          "notes": "Observe next window and generate new LearningSample + proposals",
+          "type": "MONITOR_NEXT_WINDOW"
+        }
+      ],
+      "status": "READY",
+      "strategy": "rebase",
+      "summary": "No-op apply (policy unchanged)",
+      "ts_iso": "2025-12-21T03:21:39.627081+00:00",
+      "warnings": [
+        "BASE_POLICY_HASH_MISMATCH"
+      ]
+    },
+    "plan_path": "logs/delivery_plans/dp_d6c837e9a87d416c850b39115c2f564b.json"
+  },
+  "targets_suggested": [
+    {
+      "channel": "#ops",
+      "type": "slack"
+    },
+    {
+      "to": "ops@example.com",
+      "type": "email"
+    },
+    {
+      "name": "delivery-ingest",
+      "type": "webhook"
+    }
+  ],
+  "text": "plan_id: dp_d6c837e9a87d416c850b39115c2f564b\nproposal_id: pp_a0e9166fdf184a709ae6e9a87d691fd5\npolicy: v0003 sha=f703830e5dab…\nnoop_apply: True\napprovers_used: carol\nwarnings: BASE_POLICY_HASH_MISMATCH\nrationale: [childcare] False alarm rate 1.00 with zero incidents suggests over-sensitivity; suggest less sensitive thresholds.\nplan_path: logs/delivery_plans/dp_d6c837e9a87d416c850b39115c2f564b.json\nreceipt_path: logs/applied/receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003_20251217T1306522381340000.json\nscene_ids: scene_dc0257ecd6424418bdf9ca940195c6be\nsample_ids: ls_8a3f0fd263e741198437b801320a6d6f\nsnapshot_ids: snap_251cfef5972e481283145b948cf184a3",
+  "ts_iso": "2025-12-21T03:21:39.627081+00:00",
+  "type": "DELIVERY_PACK"
+}

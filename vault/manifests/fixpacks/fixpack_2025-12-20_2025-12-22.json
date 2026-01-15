@@ -1,0 +1,51 @@
+{
+  "schema": {
+    "name": "fix_pack",
+    "version": "0.1.0"
+  },
+  "window": {
+    "from": "2025-12-20",
+    "to": "2025-12-22"
+  },
+  "generated_at": "2025-12-23T00:16:43.723430Z",
+  "groups": [
+    {
+      "card_id": "card_strategy_001",
+      "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+      "count": 3,
+      "evidence_terms": {
+        "recommend": 3
+      },
+      "examples": [
+        "vault/exceptions/2025/12/22/exception_01KD45TP8QG89DJRN6KR1NARNB__CONTEXT_FORBIDDEN_LANGUAGE.json",
+        "vault/exceptions/2025/12/22/exception_01KD47ADGZFVCN6XNKX3PGEK4W__CONTEXT_FORBIDDEN_LANGUAGE.json",
+        "vault/exceptions/2025/12/22/exception_01KD47E7V4BWGWWQ8FVD9BMZ04__CONTEXT_FORBIDDEN_LANGUAGE.json"
+      ],
+      "suggestions": [
+        "컨텍스트(또는 카드 메모)에서 금지어 \"recommend\" 제거/치환",
+        "권장 문구 템플릿: \"Context snapshot only. No directives.\"",
+        "금지어 리스트(기본): recommend, buy, sell, target, entry, exit, bullish, bearish, long, short, go long, go short",
+        "수정 후: tlog → vscan --strict-context 재실행"
+      ]
+    },
+    {
+      "card_id": "card_judgment_001",
+      "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+      "count": 3,
+      "evidence_terms": {
+        "recommend": 3
+      },
+      "examples": [
+        "vault/exceptions/2025/12/22/exception_01KD45TP8QG89DJRN6KR1NARNB__CONTEXT_FORBIDDEN_LANGUAGE.json",
+        "vault/exceptions/2025/12/22/exception_01KD47ADGZFVCN6XNKX3PGEK4W__CONTEXT_FORBIDDEN_LANGUAGE.json",
+        "vault/exceptions/2025/12/22/exception_01KD47E7V4BWGWWQ8FVD9BMZ04__CONTEXT_FORBIDDEN_LANGUAGE.json"
+      ],
+      "suggestions": [
+        "컨텍스트(또는 카드 메모)에서 금지어 \"recommend\" 제거/치환",
+        "권장 문구 템플릿: \"Context snapshot only. No directives.\"",
+        "금지어 리스트(기본): recommend, buy, sell, target, entry, exit, bullish, bearish, long, short, go long, go short",
+        "수정 후: tlog → vscan --strict-context 재실행"
+      ]
+    }
+  ]
+}

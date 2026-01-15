@@ -1,0 +1,38 @@
+{
+  "schema": {
+    "name": "outcome_record",
+    "version": "0.1.0"
+  },
+  "id": "01KD4919V6PCJ5GZEG801WKMB0",
+  "ts": "2025-12-23T00:16:38Z",
+  "producer": {
+    "system": "trading_os",
+    "module": "logger",
+    "instance": "sandbox-1"
+  },
+  "hash": {
+    "algo": "sha256",
+    "value": "fbd86a686fcec777995b10ab2f9a77085228cdd3dcf944cff680826b38aa876a"
+  },
+  "run_id": "01KD4919V6PCJ5GZEG801WKMB0",
+  "pnl": {
+    "realized": 0.0,
+    "unrealized": 0.0,
+    "ccy": "USDT"
+  },
+  "excursions": {
+    "mae": 0.0,
+    "mfe": 0.0,
+    "ccy": "USDT"
+  },
+  "execution_quality": {
+    "slippage": 0.0,
+    "slippage_unit": "bps",
+    "latency_ms": 0
+  },
+  "labels": {
+    "result": "OPEN",
+    "reason": ""
+  },
+  "notes": "live run"
+}

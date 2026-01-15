@@ -1,0 +1,8 @@
+{
+  "context_snapshot": "0.1.0",
+  "card_definition": "0.1.0",
+  "execution_log": "0.1.0",
+  "outcome_record": "0.1.0",
+  "card_patch": "0.1.0",
+  "exception_report": "0.1.0"
+}

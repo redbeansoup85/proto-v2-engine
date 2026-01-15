@@ -1,0 +1,168 @@
+
+================================================================================
+CASE: channel = childcare
+================================================================================
+
+DECISION:
+{'mode': 'suppress',
+ 'rationale': ['Prelude C not implemented',
+               'Default conservative decision',
+               'emotion_os detected high-risk pattern',
+               'policy_v0.1: CRITICAL emotion → suppress'],
+ 'severity': 'critical'}
+
+SIGNALS:
+[{'confidence': 1.0,
+  'name': 'quality_score',
+  'severity': 'medium',
+  'type': 'quality'},
+ {'confidence': 1.0,
+  'name': 'uncertainty_score',
+  'severity': 'medium',
+  'type': 'uncertainty'},
+ {'confidence': 0.9,
+  'name': 'high_negative_child_emotion',
+  'severity': 'critical',
+  'type': 'emotion'},
+ {'confidence': 0.9,
+  'name': 'stress_pattern_detected',
+  'severity': 'high',
+  'type': 'emotion'}]
+
+SCENE_STATE:
+{'emotion_flags': [{'confidence': 0.9,
+                    'name': 'high_negative_child_emotion',
+                    'severity': 'critical'},
+                   {'confidence': 0.9,
+                    'name': 'stress_pattern_detected',
+                    'severity': 'high'}],
+ 'schema_version': 'scene_state_v0.1',
+ 'summary': {'max_severity': 'critical',
+             'signals_by_type': {'emotion': 2, 'quality': 1, 'uncertainty': 1},
+             'signals_total': 4},
+ 'window': {'channel': 'childcare',
+            'ts_end_iso': '2025-12-15T10:05:00Z',
+            'ts_start_iso': '2025-12-15T10:00:00Z'}}
+
+RECOMMENDATIONS:
+[{'level': 'critical',
+  'message': 'Immediate staff attention recommended.',
+  'type': 'alert'},
+ {'message': 'Reduce stimulation: lower noise/light, provide calming '
+             'intervention.',
+  'type': 'action'}]
+
+ORCHESTRATOR_DECISION (v0.3):
+OrchestratorDecision(mode='HOLD', priority='urgent', requires_human_review=True, reason='human_review_required', deliveries=[DeliveryPlan(channel='log', target='audit_log', template='AUDIT_V0_3', payload={'channel': 'childcare', 'severity': 'critical', 'decision_mode': 'suppress', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'}), DeliveryPlan(channel='console', target='stdout', template='CHILDCARE_ALERT_V0_3', payload={'severity': 'critical', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'})], audit={'policy': 'no_auto_execute_childcare', 'org_id': 'org-123', 'site_id': 'site-abc'})
+
+================================================================================
+CASE: channel = fnb
+================================================================================
+
+DECISION:
+{'mode': 'suppress',
+ 'rationale': ['Prelude C not implemented',
+               'Default conservative decision',
+               'emotion_os detected high-risk pattern',
+               'policy_v0.1: CRITICAL emotion → suppress'],
+ 'severity': 'critical'}
+
+SIGNALS:
+[{'confidence': 1.0,
+  'name': 'quality_score',
+  'severity': 'medium',
+  'type': 'quality'},
+ {'confidence': 1.0,
+  'name': 'uncertainty_score',
+  'severity': 'medium',
+  'type': 'uncertainty'},
+ {'confidence': 0.9,
+  'name': 'high_negative_child_emotion',
+  'severity': 'critical',
+  'type': 'emotion'},
+ {'confidence': 0.9,
+  'name': 'stress_pattern_detected',
+  'severity': 'high',
+  'type': 'emotion'}]
+
+SCENE_STATE:
+{'emotion_flags': [{'confidence': 0.9,
+                    'name': 'high_negative_child_emotion',
+                    'severity': 'critical'},
+                   {'confidence': 0.9,
+                    'name': 'stress_pattern_detected',
+                    'severity': 'high'}],
+ 'schema_version': 'scene_state_v0.1',
+ 'summary': {'max_severity': 'critical',
+             'signals_by_type': {'emotion': 2, 'quality': 1, 'uncertainty': 1},
+             'signals_total': 4},
+ 'window': {'channel': 'fnb',
+            'ts_end_iso': '2025-12-15T10:05:00Z',
+            'ts_start_iso': '2025-12-15T10:00:00Z'}}
+
+RECOMMENDATIONS:
+[{'level': 'critical',
+  'message': 'Immediate staff attention recommended.',
+  'type': 'alert'},
+ {'message': 'Reduce stimulation: lower noise/light, provide calming '
+             'intervention.',
+  'type': 'action'}]
+
+ORCHESTRATOR_DECISION (v0.3):
+OrchestratorDecision(mode='NOTIFY_MANAGER', priority='urgent', requires_human_review=True, reason='notify_manager', deliveries=[DeliveryPlan(channel='log', target='audit_log', template='AUDIT_V0_3', payload={'channel': 'fnb', 'severity': 'critical', 'decision_mode': 'suppress', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'}), DeliveryPlan(channel='slack', target='#ops-alerts', template='FNB_NOTIFY_V0_3', payload={'severity': 'critical', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'})], audit={'policy': 'notify_manager_fnb', 'org_id': 'org-123', 'site_id': 'site-abc'})
+
+================================================================================
+CASE: channel = trading
+================================================================================
+
+DECISION:
+{'mode': 'suppress',
+ 'rationale': ['Prelude C not implemented',
+               'Default conservative decision',
+               'emotion_os detected high-risk pattern',
+               'policy_v0.1: CRITICAL emotion → suppress'],
+ 'severity': 'critical'}
+
+SIGNALS:
+[{'confidence': 1.0,
+  'name': 'quality_score',
+  'severity': 'medium',
+  'type': 'quality'},
+ {'confidence': 1.0,
+  'name': 'uncertainty_score',
+  'severity': 'medium',
+  'type': 'uncertainty'},
+ {'confidence': 0.9,
+  'name': 'high_negative_child_emotion',
+  'severity': 'critical',
+  'type': 'emotion'},
+ {'confidence': 0.9,
+  'name': 'stress_pattern_detected',
+  'severity': 'high',
+  'type': 'emotion'}]
+
+SCENE_STATE:
+{'emotion_flags': [{'confidence': 0.9,
+                    'name': 'high_negative_child_emotion',
+                    'severity': 'critical'},
+                   {'confidence': 0.9,
+                    'name': 'stress_pattern_detected',
+                    'severity': 'high'}],
+ 'schema_version': 'scene_state_v0.1',
+ 'summary': {'max_severity': 'critical',
+             'signals_by_type': {'emotion': 2, 'quality': 1, 'uncertainty': 1},
+             'signals_total': 4},
+ 'window': {'channel': 'trading',
+            'ts_end_iso': '2025-12-15T10:05:00Z',
+            'ts_start_iso': '2025-12-15T10:00:00Z'}}
+
+RECOMMENDATIONS:
+[{'level': 'critical',
+  'message': 'Immediate staff attention recommended.',
+  'type': 'alert'},
+ {'message': 'Reduce stimulation: lower noise/light, provide calming '
+             'intervention.',
+  'type': 'action'}]
+
+ORCHESTRATOR_DECISION (v0.3):
+OrchestratorDecision(mode='ALERT_ONLY', priority='urgent', requires_human_review=False, reason='alert_only_trading', deliveries=[DeliveryPlan(channel='log', target='audit_log', template='AUDIT_V0_3', payload={'channel': 'trading', 'severity': 'critical', 'decision_mode': 'suppress', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'}), DeliveryPlan(channel='console', target='stdout', template='TRADING_ALERT_ONLY_V0_3', payload={'severity': 'critical', 'recommendations': [{'type': 'alert', 'level': 'critical', 'message': 'Immediate staff attention recommended.'}, {'type': 'action', 'message': 'Reduce stimulation: lower noise/light, provide calming intervention.'}], 'org_id': 'org-123', 'site_id': 'site-abc'})], audit={'policy': 'no_trade_execution_here', 'org_id': 'org-123', 'site_id': 'site-abc'})

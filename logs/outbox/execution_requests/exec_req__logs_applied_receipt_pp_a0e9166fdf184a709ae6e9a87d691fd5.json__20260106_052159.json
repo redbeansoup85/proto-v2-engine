@@ -1,0 +1,41 @@
+{
+  "auto_action": false,
+  "judgment_ref": "logs/applied/receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5.json",
+  "limit": {
+    "max_daily_loss_usd": null,
+    "max_notional_usd": 1000.0,
+    "max_order_count": 1,
+    "metadata": null
+  },
+  "metadata": null,
+  "request_payload": {
+    "action": "ORDER_CREATE",
+    "symbol": "BTCUSDT",
+    "type": "MARKET"
+  },
+  "responsibility": {
+    "actor_id": "seunghyun",
+    "actor_role": "owner",
+    "decision": "ACCEPT",
+    "judgment_ref": "logs/applied/receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5.json",
+    "metadata": null,
+    "reason": null,
+    "ts": "2026-01-06T05:21:59Z"
+  },
+  "scope": {
+    "account_id": null,
+    "assets": [
+      "BTC"
+    ],
+    "domain": "family",
+    "notes": null,
+    "permitted_actions": [
+      "ORDER_CREATE"
+    ],
+    "target_id": null
+  },
+  "timebox": {
+    "valid_from": "2026-01-06T04:30:00Z",
+    "valid_until": "2026-01-06T05:00:00Z"
+  }
+}

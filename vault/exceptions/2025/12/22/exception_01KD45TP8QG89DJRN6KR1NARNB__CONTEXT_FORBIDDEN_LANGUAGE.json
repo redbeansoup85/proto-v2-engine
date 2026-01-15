@@ -1,0 +1,39 @@
+{
+  "schema": {
+    "name": "exception_report",
+    "version": "0.1.0"
+  },
+  "id": "exception_01KD45TP8QG89DJRN6KR1NARNB__CONTEXT_FORBIDDEN_LANGUAGE",
+  "ts": "2025-12-22T23:24:24Z",
+  "producer": {
+    "system": "meta_os",
+    "module": "validator",
+    "instance": "meta-1"
+  },
+  "hash": {
+    "algo": "sha256",
+    "value": "e2ee5d66e277b2f7f206d3b85372829a23d6c80efe4c2b242fd134782fc1fcda"
+  },
+  "run_id": "01KD45TP8QG89DJRN6KR1NARNB",
+  "severity": "HARD_FAIL",
+  "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+  "message": "Forbidden directional/recommendation language detected in context_snapshot",
+  "evidence": {
+    "exec_path": "/Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/vault/executions/2025/12/22/exec_01KD45TP8QG89DJRN6KR1NARNB.json",
+    "outcome_path": "/Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/vault/outcomes/2025/12/22/outcome_01KD45TP8QG89DJRN6KR1NARNB.json",
+    "context_id": "context_demo",
+    "finding": {
+      "term": "recommend"
+    },
+    "all_hard_fails": [
+      {
+        "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+        "message": "Forbidden directional/recommendation language detected in context_snapshot",
+        "evidence": {
+          "term": "recommend"
+        }
+      }
+    ],
+    "warnings": []
+  }
+}

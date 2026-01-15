@@ -1,0 +1,34 @@
+{
+  "schema": "family_trading_summary.v1",
+  "generated_at": "2025-12-23T01:58:16.842903Z",
+  "source_file": "vault/inbox/family_trading/trading_outcomes.jsonl",
+  "total_records": 1,
+  "by_group": [
+    {
+      "asset": "BTC",
+      "timeframe": "15m",
+      "scene_label": "S2_SWEEP",
+      "n": 1,
+      "results": {
+        "positive": 1,
+        "negative": 0,
+        "flat": 0,
+        "unknown": 0
+      },
+      "win_rate": 1.0,
+      "mae": {
+        "median_pct": 0.5,
+        "count": 1
+      },
+      "mfe": {
+        "median_pct": 1.2,
+        "count": 1
+      },
+      "holding_minutes": {
+        "median": 30.0,
+        "count": 1
+      }
+    }
+  ],
+  "notes": "Descriptive summary only. No directional guidance or execution instructions."
+}

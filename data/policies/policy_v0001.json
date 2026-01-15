@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "thresholds": {
+    "childcare": {
+      "high_negative_child_emotion": 0.90,
+      "stress_pattern_detected": 0.90
+    }
+  },
+  "rules": [
+    {
+      "id": "R1",
+      "name": "default_policy",
+      "enabled": true
+    }
+  ]
+}

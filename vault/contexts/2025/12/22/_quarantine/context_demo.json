@@ -1,0 +1,10 @@
+{
+  "schema": {"name":"context_snapshot","version":"0.1.0"},
+  "id": "context_demo",
+  "ts": "2025-01-01T00:00:00Z",
+  "producer": {"system":"context_sandbox","module":"snapshotter","instance":"ctx-1"},
+  "scope": {"asset_class":["crypto"],"market_structure":"24_7","region":["global"]},
+  "tags": {"rate_regime":"high_rising","vol_regime":"expanding"},
+  "metrics": {"vix":{"value":18.2,"unit":"index"}},
+  "notes": "Context only. Context snapshot only. No directives."
+}

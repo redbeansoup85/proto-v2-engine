@@ -1,0 +1,20 @@
+{
+  "run_id": "01KD47E7V4BWGWWQ8FVD9BMZ04",
+  "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+  "fix_template": "Context snapshot only. No directives.",
+  "forbidden_terms": [
+    "recommend",
+    "buy",
+    "sell",
+    "target",
+    "entry",
+    "exit",
+    "bullish",
+    "bearish",
+    "long",
+    "short",
+    "go long",
+    "go short"
+  ],
+  "action": "Edit context/card wording \u2192 rerun tlog \u2192 vscan --strict-context"
+}

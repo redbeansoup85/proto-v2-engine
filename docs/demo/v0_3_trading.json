@@ -1,0 +1,60 @@
+{
+  "channel": "trading",
+  "decision": {
+    "mode": "ALERT_ONLY",
+    "priority": "urgent",
+    "requires_human_review": false,
+    "reason": "alert_only_trading",
+    "deliveries": [
+      {
+        "channel": "log",
+        "target": "audit_log",
+        "template": "AUDIT_V0_3",
+        "payload": {
+          "channel": "trading",
+          "severity": "critical",
+          "decision_mode": "observe_more",
+          "recommendations": [
+            {
+              "type": "alert",
+              "level": "high",
+              "message": "High-risk pattern detected. Monitor closely."
+            },
+            {
+              "type": "observe",
+              "message": "Collect more data for next window; avoid strong interventions unless risk escalates."
+            }
+          ],
+          "org_id": "org-123",
+          "site_id": "site-abc"
+        }
+      },
+      {
+        "channel": "console",
+        "target": "stdout",
+        "template": "TRADING_ALERT_ONLY_V0_3",
+        "payload": {
+          "severity": "critical",
+          "recommendations": [
+            {
+              "type": "alert",
+              "level": "high",
+              "message": "High-risk pattern detected. Monitor closely."
+            },
+            {
+              "type": "observe",
+              "message": "Collect more data for next window; avoid strong interventions unless risk escalates."
+            }
+          ],
+          "org_id": "org-123",
+          "site_id": "site-abc"
+        }
+      }
+    ],
+    "audit": {
+      "policy": "no_trade_execution_here",
+      "org_id": "org-123",
+      "site_id": "site-abc"
+    }
+  }
+}

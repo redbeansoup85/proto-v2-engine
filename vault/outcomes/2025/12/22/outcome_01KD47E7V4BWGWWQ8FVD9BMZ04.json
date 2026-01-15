@@ -1,0 +1,38 @@
+{
+  "schema": {
+    "name": "outcome_record",
+    "version": "0.1.0"
+  },
+  "id": "01KD47E7V4BWGWWQ8FVD9BMZ04",
+  "ts": "2025-12-22T23:48:45Z",
+  "producer": {
+    "system": "trading_os",
+    "module": "logger",
+    "instance": "sandbox-1"
+  },
+  "hash": {
+    "algo": "sha256",
+    "value": "abef4777b5c89dca718bbc2216f1b8d76a4854ae69ac6afa74b357d65356d903"
+  },
+  "run_id": "01KD47E7V4BWGWWQ8FVD9BMZ04",
+  "pnl": {
+    "realized": 0.0,
+    "unrealized": 0.0,
+    "ccy": "USDT"
+  },
+  "excursions": {
+    "mae": -1.0,
+    "mfe": 1.0,
+    "ccy": "USDT"
+  },
+  "execution_quality": {
+    "slippage": 0.0,
+    "slippage_unit": "bps",
+    "latency_ms": 0
+  },
+  "labels": {
+    "result": "WIN",
+    "reason": "tp1_hit"
+  },
+  "notes": "fail test close 2"
+}

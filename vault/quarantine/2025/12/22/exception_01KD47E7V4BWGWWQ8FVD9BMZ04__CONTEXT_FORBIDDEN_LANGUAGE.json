@@ -1,0 +1,39 @@
+{
+  "schema": {
+    "name": "exception_report",
+    "version": "0.1.0"
+  },
+  "id": "exception_01KD47E7V4BWGWWQ8FVD9BMZ04__CONTEXT_FORBIDDEN_LANGUAGE",
+  "ts": "2025-12-22T23:48:45Z",
+  "producer": {
+    "system": "meta_os",
+    "module": "validator",
+    "instance": "meta-1"
+  },
+  "hash": {
+    "algo": "sha256",
+    "value": "9c65a3f36ae5a683af7cf341106d8a8073f9ba6f3a056fd179a6123e2c3483c6"
+  },
+  "run_id": "01KD47E7V4BWGWWQ8FVD9BMZ04",
+  "severity": "HARD_FAIL",
+  "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+  "message": "Forbidden directional/recommendation language detected in context_snapshot",
+  "evidence": {
+    "exec_path": "/Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/vault/executions/2025/12/22/exec_01KD47E7V4BWGWWQ8FVD9BMZ04.json",
+    "outcome_path": "/Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/vault/outcomes/2025/12/22/outcome_01KD47E7V4BWGWWQ8FVD9BMZ04.json",
+    "context_id": "context_demo",
+    "finding": {
+      "term": "recommend"
+    },
+    "all_hard_fails": [
+      {
+        "code": "CONTEXT_FORBIDDEN_LANGUAGE",
+        "message": "Forbidden directional/recommendation language detected in context_snapshot",
+        "evidence": {
+          "term": "recommend"
+        }
+      }
+    ],
+    "warnings": []
+  }
+}

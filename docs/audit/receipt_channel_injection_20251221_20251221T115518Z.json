@@ -1,0 +1,49 @@
+{
+  "dest_dir": "logs/applied_migrated",
+  "files": [
+    {
+      "after_sha256": "9bc02ec0579511e60797c8a3b058683be00734bfada6736326b0af2454c3c62f",
+      "before_sha256": "9bc02ec0579511e60797c8a3b058683be00734bfada6736326b0af2454c3c62f",
+      "changed": false,
+      "file": "receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5.json"
+    },
+    {
+      "after_sha256": "021b46e230789c0972e03c291d92b24aea07c6586ca3f185dd28d2b16304e5b8",
+      "before_sha256": "021b46e230789c0972e03c291d92b24aea07c6586ca3f185dd28d2b16304e5b8",
+      "changed": false,
+      "file": "receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003.json"
+    },
+    {
+      "after_sha256": "e3e080141c917ff00cf037aff6daf10d0eeb1bd5596cd8d8b7bbb2cfba643f3d",
+      "before_sha256": "e3e080141c917ff00cf037aff6daf10d0eeb1bd5596cd8d8b7bbb2cfba643f3d",
+      "changed": false,
+      "file": "receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003_20251217T1246406864450000.json"
+    },
+    {
+      "after_sha256": "eae8d18abcd74324750f756542887c5e701998fd5a26e701fdef56a9402d34a5",
+      "before_sha256": "eae8d18abcd74324750f756542887c5e701998fd5a26e701fdef56a9402d34a5",
+      "changed": false,
+      "file": "receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003_20251217T1306522381340000.json"
+    },
+    {
+      "after_sha256": "c05ac8083f004e7655bc0c50d889d3fb932a230b877e9e71d6cf94a4286e159f",
+      "before_sha256": "8fc36db384b5a7c1952808596b2d2fff1ba970e0da06cffd12088260fd4ad829",
+      "changed": true,
+      "file": "receipt_pp_a0e9166fdf184a709ae6e9a87d691fd5_noop_v0003_20251221T0353166941860000.json"
+    }
+  ],
+  "migration_id": "receipt_channel_injection_20251221",
+  "policy": {
+    "evidence_channel": "forbidden_default",
+    "root_channel": "deprecated_compat_only",
+    "routing_key": "meta.channel"
+  },
+  "source_dir": "logs/applied",
+  "stats": {
+    "already_had_meta_channel": 4,
+    "patched": 1,
+    "total": 5
+  },
+  "target_channel": "childcare",
+  "timestamp_iso": "2025-12-21T11:55:18.348362Z"
+}

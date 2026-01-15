@@ -1,0 +1,20 @@
+{
+  "bundle_type": "SCENE_BUNDLE",
+  "channel": "unknown",
+  "last_plan_id": "dp_44a3988f01344a1e8d91bcc59af84511",
+  "last_ts_iso": "2025-12-21T03:29:59.122845+00:00",
+  "plans_tail": [
+    {
+      "noop_apply": true,
+      "plan_id": "dp_44a3988f01344a1e8d91bcc59af84511",
+      "plan_path": "logs/delivery_plans/dp_44a3988f01344a1e8d91bcc59af84511.json",
+      "policy_version": 3,
+      "proposal_id": "pp_a0e9166fdf184a709ae6e9a87d691fd5",
+      "ts_iso": "2025-12-21T03:29:59.122845+00:00",
+      "warnings": [
+        "BASE_POLICY_HASH_MISMATCH"
+      ]
+    }
+  ],
+  "scene_id": "scene_dc0257ecd6424418bdf9ca940195c6be"
+}

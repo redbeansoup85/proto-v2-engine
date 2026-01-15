@@ -1,0 +1,53 @@
+{
+  "NOOP_APPLY": true,
+  "after_policy_sha256": "c8c037ef312921e127c6e3d0f03c48e21ae97edb77628a63ee16cfb24a205c9c",
+  "after_policy_version": 4,
+  "applier": "ops",
+  "approvers_used": [
+    "seunghyun"
+  ],
+  "artifact_hash": "828c833e3d0e266b722facc2e86e45784c229eb02be0c07a08a832a6f942fedc",
+  "before_policy_sha256": "c8c037ef312921e127c6e3d0f03c48e21ae97edb77628a63ee16cfb24a205c9c",
+  "before_policy_version": 4,
+  "channel": "childcare",
+  "comment": "",
+  "evidence": {
+    "channel": "childcare",
+    "evidence_sample_ids": [
+      "ls_8a3f0fd263e741198437b801320a6d6f"
+    ],
+    "evidence_scene_ids": [
+      "scene_dc0257ecd6424418bdf9ca940195c6be"
+    ],
+    "evidence_snapshot_ids": [
+      "snap_251cfef5972e481283145b948cf184a3"
+    ],
+    "metrics": {
+      "confirmed_count": 1,
+      "false_alarm_rate": 0.0,
+      "incident_rate": 0.0,
+      "sample_count": 2,
+      "window_days": 7
+    },
+    "patch": {
+      "notes": "Auto-proposed threshold adjustment based on LearningSample signals.high_risk evidence (count=1). Proposed change: /thresholds/childcare/stress_pattern_detected 0.95 -> 0.96. Human approval required."
+    },
+    "patch_type": "JSONPatch",
+    "rationale": "Auto-proposed threshold adjustment based on LearningSample signals.high_risk evidence (count=1). Proposed change: /thresholds/childcare/stress_pattern_detected 0.95 -> 0.96. Human approval required."
+  },
+  "min_approvals": 1,
+  "patch_ops": [
+    {
+      "op": "replace",
+      "path": "/thresholds/childcare/stress_pattern_detected",
+      "value": 0.96
+    }
+  ],
+  "proposal_id": "pp_2026-01-06T093754523977+0000",
+  "reason": "after_sha256 == before_sha256",
+  "strategy": "rebase",
+  "ts_iso": "2026-01-07T05:30:57.659739+00:00",
+  "warnings": [
+    "BASE_POLICY_HASH_MISMATCH"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "enabled": true,
+      "id": "R1",
+      "name": "default_policy"
+    }
+  ],
+  "thresholds": {
+    "childcare": {
+      "high_negative_child_emotion": 0.95,
+      "stress_pattern_detected": 0.96
+    }
+  },
+  "version": 1
+}
