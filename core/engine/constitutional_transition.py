@@ -73,6 +73,10 @@ def constitutional_transition(
 
     approval = judgment_port.get_approval(dpa_id=dpa_id)
 
+    amendment_class = _get_amendment_class()
+    _enforce_amajor_requires_rationale(amendment_class, approval)
+
+
     if not getattr(approval, "selected_option_id", None):
         raise PermissionError("Missing selected_option_id")
 
@@ -108,3 +112,17 @@ def constitutional_transition(
 
     # (6) Real engine binding
     return run_engine(prelude_output, strict=strict)
+
+
+def _get_amendment_class() -> str:
+    import os
+    return (os.getenv("META_AMENDMENT_CLASS") or "").strip()
+
+
+def _enforce_amajor_requires_rationale(amendment_class: str, approval: Any) -> None:
+    if amendment_class != "A-MAJOR":
+        return
+    # A-MAJOR: rationale_ref must exist for auditability.
+    rr = getattr(approval, "rationale_ref", None)
+    if not rr:
+        raise PermissionError("A-MAJOR amendment requires rationale_ref (fail-closed).")
