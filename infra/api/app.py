@@ -23,6 +23,8 @@ app = FastAPI(
     version="0.5.0",
 )
 
+import os
+
 # ---- v1 core routes ----
 app.include_router(decision_router)
 app.include_router(audit_router)
@@ -39,6 +41,12 @@ app.include_router(policy_patches_router)
 # MUST be included to expose:
 #   POST /v1/constitutional/transition
 app.include_router(constitutional_router)
+
+
+# v0.6: mount debug routes only in local
+if os.getenv("METAOS_ENV", "").lower() == "local":
+    from infra.api.routes.constitutional_debug import router as constitutional_debug_router
+    app.include_router(constitutional_debug_router)
 
 
 @app.get("/health")
