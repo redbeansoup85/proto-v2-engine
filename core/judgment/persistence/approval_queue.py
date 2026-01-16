@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -11,18 +11,20 @@ class ApprovalQueueItem:
     approval_id: str
     dpa_id: str
     event_id: str
+    selected_option_id: str
     status: str          # "PENDING" | "APPROVED" | "REJECTED"
     authority_id: str
     rationale_ref: str
-    selected_option_id: str
 
 
 class FileBackedApprovalQueue:
     """
-    Append-only approvals.jsonl (snapshot per mutation)
-    - enqueue() writes full snapshot with status=PENDING
-    - set_status() appends full snapshot (same ids, updated status)
-    - get_latest_by_approval_id() scans and returns last snapshot
+    Append-only approvals.jsonl (event sourcing)
+    Records:
+      - enqueue: full ApprovalQueueItem (status=PENDING)
+      - status update: {"approval_id": "...", "status": "..."}
+    Read:
+      - reduce all events => latest state per approval_id
     """
 
     def __init__(self, root_dir: str) -> None:
@@ -40,38 +42,44 @@ class FileBackedApprovalQueue:
                     continue
                 yield json.loads(ln)
 
+    def _reduce(self) -> Dict[str, Dict]:
+        """
+        approval_id -> latest object dict
+        Reducer rule:
+          - if full item: replace baseline (has dpa_id)
+          - if status-only: patch status if baseline exists
+        """
+        st: Dict[str, Dict] = {}
+        for obj in self._iter():
+            aid = obj.get("approval_id")
+            if not aid:
+                continue
+            if "dpa_id" in obj:
+                # full snapshot
+                st[aid] = obj
+            else:
+                # status event
+                if aid in st and "status" in obj:
+                    st[aid]["status"] = obj["status"]
+        return st
+
     def enqueue(self, item: ApprovalQueueItem) -> None:
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(item), ensure_ascii=False) + "\n")
 
+    def set_status(self, approval_id: str, status: str) -> None:
+        with self.path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"approval_id": approval_id, "status": status}, ensure_ascii=False) + "\n")
+
     def get_latest_by_approval_id(self, approval_id: str) -> Optional[ApprovalQueueItem]:
-        last: Optional[Dict[str, Any]] = None
-        for obj in self._iter():
-            if obj.get("approval_id") == approval_id:
-                last = obj
-        return ApprovalQueueItem(**last) if last else None
+        st = self._reduce()
+        obj = st.get(approval_id)
+        return ApprovalQueueItem(**obj) if obj else None
 
     def get_latest_for_dpa(self, dpa_id: str) -> Optional[ApprovalQueueItem]:
-        last: Optional[Dict[str, Any]] = None
-        for obj in self._iter():
+        st = self._reduce()
+        last = None
+        for obj in st.values():
             if obj.get("dpa_id") == dpa_id:
                 last = obj
         return ApprovalQueueItem(**last) if last else None
-
-    def set_status(self, approval_id: str, status: str) -> None:
-        latest = self.get_latest_by_approval_id(approval_id)
-        if latest is None:
-            # keep behavior simple for v0.6: append-only store cannot update non-existent item
-            raise ValueError(f"approval_id not found: {approval_id}")
-
-        snap = ApprovalQueueItem(
-            approval_id=latest.approval_id,
-            dpa_id=latest.dpa_id,
-            event_id=latest.event_id,
-            status=status,
-            authority_id=latest.authority_id,
-            rationale_ref=latest.rationale_ref,
-            selected_option_id=latest.selected_option_id,
-        )
-        with self.path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(asdict(snap), ensure_ascii=False) + "\n")

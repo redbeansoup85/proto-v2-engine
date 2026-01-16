@@ -2,26 +2,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from core.judgment.models import DpaRecord
-
 
 class NoopDpaApplyPort:
     """
-    v0.6 DEV/LOCAL only.
-    Satisfies constitutional_transition() requirements without side-effects.
-
-    Required by engine (observed from traceback):
-      - get_dpa(dpa_id=...)
-      - apply(...)  (shape can vary; accept **kwargs)
+    Fail-closed apply port.
+    - Methods exist (no AttributeError)
+    - But always denies apply unless someone replaces with real port.
     """
 
-    def __init__(self, repo: Any) -> None:
-        # repo is expected to have .get(dpa_id)
-        self._repo = repo
+    def get_dpa(self, *, dpa_id: str) -> Optional[Dict[str, Any]]:
+        return None
 
-    def get_dpa(self, *, dpa_id: str) -> Optional[DpaRecord]:
-        return self._repo.get(dpa_id)  # type: ignore[attr-defined]
-
-    def apply(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
-        # No real side effects in v0.6
-        return {"ok": True, "applied": False, "mode": "noop", "args": [str(a) for a in args], "kwargs": {k: str(v) for k, v in kwargs.items()}}
+    def apply(self, *, dpa_id: str, selected_option_id: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        raise PermissionError("No DPA apply port (fail-closed)")
