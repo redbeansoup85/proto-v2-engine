@@ -123,43 +123,6 @@ def approvals_reject(approval_id: str) -> Any:
     return {"ok": True, "approval_id": approval_id, "status": "REJECTED"}
 
 
-@router.post("/__debug_seed")
-def __debug_seed(req: SeedReq):
-    import os
-    env = os.getenv("METAOS_ENV", "dev").lower()
-    if env not in ("dev", "local"):
-        raise HTTPException(status_code=404, detail="DEBUG_SEED_DISABLED")
-
-    """
-    DEV ONLY:
-    - create DPA if missing
-    - start_review (best-effort)
-    - submit_human_decision => APPROVED
-    """
-    # create if missing
-    try:
-        _ = _SVC.get_dpa(dpa_id=req.dpa_id)
-    except Exception:
-        _SVC.create_dpa(event_id=req.event_id, context={"source": "constitutional_api"}, dpa_id=req.dpa_id)
-
-    # move to reviewing (best-effort)
-    try:
-        _SVC.start_review(dpa_id=req.dpa_id, reviewer="debug")
-    except Exception:
-        pass
-
-    # approve -> APPROVED
-    hd = HumanDecision(
-        selected_option_id=req.selected_option_id,
-        reason_codes=["DEBUG"],
-        reason_note="debug seed",
-        approver_name="Tester",
-        approver_role="Owner",
-        signature="Tester@local",
-    )
-    dpa = _SVC.submit_human_decision(dpa_id=req.dpa_id, decision=hd)
-    return {"ok": True, "status": str(dpa.status)}
-
 
 @router.post("/transition")
 def transition(req: TransitionRequest) -> Any:
