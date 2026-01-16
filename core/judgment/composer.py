@@ -58,3 +58,32 @@ class SimpleStaticComposer:
             constraints_json=self._constraints,
             system_position_json=self._system_position,
         )
+
+# =========================
+# API bring-up minimal composer (v0)
+# =========================
+class MinimalDpaComposer:
+    """
+    Minimal composer for API bring-up.
+    Keeps constitutional gate alive without domain-specific option building.
+
+    NOTE:
+      - Replace with domain composers later (Childcare/Kisetsu/Trading).
+    """
+    def compose(self, *, dpa_id: str, event_id: str, context: dict):
+        from core.judgment.models import DpaRecord, DpaOption
+
+        return DpaRecord(
+            dpa_id=dpa_id,
+            event_id=event_id,
+            context_json=context or {},
+            options_json=[
+                DpaOption(
+                    option_id="opt_001",
+                    title="Proceed (minimal)",
+                    summary="Minimal option for API bring-up",
+                    blocked=False,
+                    payload={},
+                )
+            ],
+        )

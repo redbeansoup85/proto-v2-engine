@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Optional, Protocol
 
 from core.engine.run_engine import run_engine
+from core.judgment.errors import PolicyError
 
 
 # ---- Ports (Protocol only; implementations live outside the engine) ----
@@ -99,8 +100,14 @@ def constitutional_transition(
         dpa = dpa_apply_port.get_dpa(dpa_id=dpa_id)
         if not _is_applied_status(dpa):
             dpa_apply_port.apply(dpa_id=dpa_id)
+    except PolicyError as e:
+        # Preserve policy error details for API/debug visibility
+        code = getattr(e, "code", "POLICY_ERROR")
+        msg = getattr(e, "message", str(e))
+        extra = getattr(e, "extra", None)
+        raise PermissionError(f"DPA apply blocked: {code}: {msg} | extra={extra}") from e
     except Exception as e:
-        raise PermissionError(f"DPA apply blocked: {type(e).__name__}") from e
+        raise PermissionError(f"DPA apply blocked: {type(e).__name__}: {e}") from e
 
     # (6) Real engine binding
     return run_engine(prelude_output, strict=strict)

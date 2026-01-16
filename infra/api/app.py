@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+# ---- Constitutional (v0.5 핵심) ----
+from infra.api.routes.constitutional import router as constitutional_router
+
+# ---- Existing v1 routers ----
 from infra.api.routes.decision import router as decision_router
 from infra.api.routes.audit import router as audit_router
 from infra.api.routes.scene import router as scene_router
@@ -16,9 +20,10 @@ from infra.api.routes.policy_patches import router as policy_patches_router
 
 app = FastAPI(
     title="Meta OS API",
-    version="0.1.0",
+    version="0.5.0",
 )
 
+# ---- v1 core routes ----
 app.include_router(decision_router)
 app.include_router(audit_router)
 app.include_router(scene_router)
@@ -29,6 +34,11 @@ app.include_router(analytics_router)
 app.include_router(insight_cards_router)
 app.include_router(learning_router)
 app.include_router(policy_patches_router)
+
+# ---- v0.5 Constitutional Gate ----
+# MUST be included to expose:
+#   POST /v1/constitutional/transition
+app.include_router(constitutional_router)
 
 
 @app.get("/health")
