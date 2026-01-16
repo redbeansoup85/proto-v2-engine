@@ -1,2 +1,0 @@
-{"approval_id": "apr_001", "dpa_id": "dpa_persist_001", "event_id": "evt_persist_001", "status": "PENDING", "selected_option_id": "opt_approve", "authority_id": "human_admin", "rationale_ref": "ui://constitutional/transition"}
-{"approval_id": "apr_001", "dpa_id": "dpa_persist_001", "event_id": "evt_persist_001", "status": "APPROVED", "selected_option_id": "opt_approve", "authority_id": "human_admin", "rationale_ref": "ui://constitutional/transition"}

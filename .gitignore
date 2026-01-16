@@ -6,3 +6,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# metaos runtime data (local/dev)
+var/metaos/
