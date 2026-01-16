@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+msg_file="${1:-}"
+if [ -z "$msg_file" ] || [ ! -f "$msg_file" ]; then
+  echo "[commit-msg] missing commit message file" >&2
+  exit 2
+fi
+
+msg="$(cat "$msg_file")"
+
+# Require classification token anywhere in message
+if echo "$msg" | grep -Eq '\bA-(MAJOR|MINOR|PATCH)\b'; then
+  exit 0
+fi
+
+echo "[BLOCKED] Commit message must include one of: A-MAJOR / A-MINOR / A-PATCH" >&2
+echo "Example: A-MINOR: enforce governance refs integrity via pytest" >&2
+exit 1
