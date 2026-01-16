@@ -33,8 +33,7 @@ subprocess.run(
  ["curl","-s","-X","POST","http://127.0.0.1:8010/v1/constitutional/__debug_seed",
   "-H","Content-Type: application/json",
   "-d", json.dumps({"dpa_id":"dpa_demo_001","event_id":"evt_demo_001","selected_option_id":"opt_approve"})],
- check=True
-)
+ check=True, capture_output=True, text=True)
 
 payload = {
   "dpa_id": "dpa_demo_001",
