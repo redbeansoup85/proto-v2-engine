@@ -98,3 +98,16 @@ Any amendment must:
 ## Lock Statement
 
 **LOCKED — Constitution AQ v1.0**
+
+---
+
+## Change Control (Amendment)
+
+This section is LOCKED. Any change to Approval Queue semantics, reducer rules, or gate behavior MUST follow:
+
+- Amendment Playbook: `docs/governance/amendment_playbook.md`
+
+Minimum classification:
+- Reducer rule / status mapping / fail-closed behavior: A-MAJOR
+- Additive fields / optional metadata: A-MINOR
+- Wording/examples only: A-PATCH
