@@ -85,13 +85,3 @@ assert isinstance(p, DpaApplyPort)  # runtime_checkable protocol
 print("OK: ports contract present (NoopDpaApplyPort satisfies DpaApplyPort)")
 PY
 
-echo "== ports contract =="
-python - <<'PY'
-from core.judgment.ports import DpaApplyPort
-from core.judgment.persistence.noop_apply_port import NoopDpaApplyPort
-
-p = NoopDpaApplyPort()
-assert hasattr(p, "get_dpa") and hasattr(p, "apply")
-assert isinstance(p, DpaApplyPort)  # runtime_checkable protocol
-print("OK: ports contract present (NoopDpaApplyPort satisfies DpaApplyPort)")
-PY
