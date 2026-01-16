@@ -1,0 +1,64 @@
+name: proto-v2-engine-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify commit classification token (A-MAJOR/A-MINOR/A-PATCH)
+        run: |
+          set -euo pipefail
+          msg="$(git log -1 --pretty=%B)"
+          echo "Commit message:"
+          echo "$msg"
+          echo "$msg" | grep -Eq '\bA-(MAJOR|MINOR|PATCH)\b'
+
+      - name: Disallow A-PATCH when governance docs changed
+        run: |
+          set -euo pipefail
+          msg="$(git log -1 --pretty=%B)"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            changed="$(git diff --name-only "$base" "$head" || true)"
+          else
+            changed="$(git diff --name-only HEAD~1..HEAD || true)"
+          fi
+
+          echo "Changed files:"
+          echo "$changed"
+
+          if echo "$changed" | grep -Eq '^docs/governance/'; then
+            echo "Governance docs changed; require A-MINOR or A-MAJOR."
+            echo "$msg" | grep -Eq '\bA-(MAJOR|MINOR)\b'
+          else
+            echo "No governance docs change detected."
+          fi
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          pytest -q
