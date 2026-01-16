@@ -22,17 +22,35 @@ jobs:
           python-version: "3.11"
 
       - name: Verify commit classification token (A-MAJOR/A-MINOR/A-PATCH)
+        id: class
+        shell: bash
         run: |
           set -euo pipefail
-          msg="$(git log -1 --pretty=%B)"
-          echo "Commit message:"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            msg="${{ github.event.pull_request.title }}"
+          else
+            msg="$(git log -1 --pretty=%B)"
+          fi
+
+          echo "Message:"
           echo "$msg"
-          echo "$msg" | grep -Eq '\bA-(MAJOR|MINOR|PATCH)\b'
+
+          token="$(printf "%s" "$msg" | sed -nE 's/^(A-(MAJOR|MINOR|PATCH)):.*/\1/p' | head -n1)"
+          if [ -z "$token" ]; then
+            echo "Missing classification token. Expected prefix: A-MAJOR: / A-MINOR: / A-PATCH:"
+            exit 1
+          fi
+
+          echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Disallow A-PATCH when governance docs changed
+        shell: bash
         run: |
           set -euo pipefail
-          msg="$(git log -1 --pretty=%B)"
+
+          token="${{ steps.class.outputs.token }}"
+          echo "Token: $token"
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
@@ -47,7 +65,9 @@ jobs:
 
           if echo "$changed" | grep -Eq '^docs/governance/'; then
             echo "Governance docs changed; require A-MINOR or A-MAJOR."
-            echo "$msg" | grep -Eq '\bA-(MAJOR|MINOR)\b'
+            if [ "$token" != "A-MAJOR" ] && [ "$token" != "A-MINOR" ]; then
+              exit 1
+            fi
           else
             echo "No governance docs change detected."
           fi
