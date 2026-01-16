@@ -111,6 +111,7 @@ def test_reject_is_immutable():
         JudgmentApproval(
             approval_id="appr_001",
             decision="REJECT",
+                selected_option_id="opt_approve",
             authority_id="human_001",
             rationale_ref="ui://decision/123",
             decided_at=datetime.utcnow(),
@@ -137,6 +138,7 @@ def test_emotion_not_gate_and_apply_required():
         JudgmentApproval(
             approval_id="appr_002",
             decision="APPROVE",
+              selected_option_id="opt_approve",
             authority_id="human_001",
             rationale_ref="ui://decision/456",
             decided_at=datetime.utcnow(),
@@ -181,6 +183,7 @@ def test_approve_but_not_applied_blocks_execution():
         JudgmentApproval(
             approval_id="appr_004",
             decision="APPROVE",
+              selected_option_id="opt_approve",
             authority_id="human_001",
             rationale_ref="ui://decision/999",
             decided_at=datetime.utcnow(),

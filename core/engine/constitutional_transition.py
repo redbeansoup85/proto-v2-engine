@@ -8,12 +8,14 @@ from core.engine.run_engine import run_engine
 from core.judgment.errors import PolicyError
 
 
+from core.judgment.ports import DpaApplyPort
 # ---- Ports (Protocol only; implementations live outside the engine) ----
 
 @dataclass(frozen=True)
 class JudgmentApproval:
     approval_id: str
     decision: str          # "APPROVE" | "REJECT"
+    selected_option_id: str
     authority_id: str
     rationale_ref: str
     decided_at: datetime
@@ -27,14 +29,6 @@ class JudgmentPort(Protocol):
 class EmotionPort(Protocol):
     def read_signal(self, *, subject_id: str, at: datetime) -> Optional[dict]: ...
 
-
-class DpaApplyPort(Protocol):
-    """
-    Minimal port surface we need (keeps engine decoupled).
-    Expected to behave like core.judgment.service.DpaService.
-    """
-    def get_dpa(self, *, dpa_id: str) -> Any: ...
-    def apply(self, *, dpa_id: str) -> Any: ...
 
 
 def _is_applied_status(dpa: Any) -> bool:
@@ -79,6 +73,9 @@ def constitutional_transition(
 
     approval = judgment_port.get_approval(dpa_id=dpa_id)
 
+    if not getattr(approval, "selected_option_id", None):
+        raise PermissionError("Missing selected_option_id")
+
     # (2) Approval invariants
     if approval.immutable is not True:
         raise PermissionError("Approval must be immutable")
@@ -99,7 +96,7 @@ def constitutional_transition(
     try:
         dpa = dpa_apply_port.get_dpa(dpa_id=dpa_id)
         if not _is_applied_status(dpa):
-            dpa_apply_port.apply(dpa_id=dpa_id)
+            dpa_apply_port.apply(dpa_id=dpa_id, selected_option_id=approval.selected_option_id, context=None)
     except PolicyError as e:
         # Preserve policy error details for API/debug visibility
         code = getattr(e, "code", "POLICY_ERROR")

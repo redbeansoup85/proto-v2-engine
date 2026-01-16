@@ -66,7 +66,7 @@ class DpaService:
         dpa = _submit_human_decision(dpa, decision)
         return self.repo.save(dpa)
 
-    def apply(self, *, dpa_id: str) -> DpaRecord:
+    def apply(self, *, dpa_id: str, selected_option_id: str | None = None, context: dict | None = None, **_: object) -> DpaRecord:
         dpa = self.get_dpa(dpa_id=dpa_id)
         dpa = _apply(dpa)
         return self.repo.save(dpa)
