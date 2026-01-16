@@ -1,4 +1,6 @@
 from __future__ import annotations
+from core.engine.transition_facade import TransitionDeps, run_transition
+from core.judgment.adapters.judgment_from_queue import ApprovalQueueJudgmentPort
 
 from datetime import datetime
 from typing import Any, Dict, Optional, Literal
@@ -24,7 +26,6 @@ import os
 # Storage selection (v0.6): local/dev => file-backed, else in-memory
 if os.getenv("METAOS_STORAGE", "memory").lower() == "file":
     _REPO = FileBackedDpaRepository(root_dir=os.getenv("METAOS_DATA_DIR", "var/metaos"))  # type: ignore
-else:
     _REPO = InMemoryDpaRepository()
 
 # Approval queue selection (v0.6)
@@ -210,36 +211,21 @@ def transition(req: TransitionRequest) -> Any:
             return _ApprovalObj(self._a)
 
     # =========================================================
-    # (E) Engine call (dev/local: debug surfacing)
     # =========================================================
-    if env in ("dev", "local"):
-        try:
-            try:
-                out = run_transition(deps=TransitionDeps(approval_queue=_QUEUE, dpa_apply_port=NoopDpaApplyPort()), dpa_id=req.dpa_id,prelude_output=req.prelude_output,
-                judgment_port=_JudgmentPort(req.approval),
-                dpa_apply_port=(NoopDpaApplyPort(_SVC.repo) if env in ("dev","local") else None),
-                )
-            except PermissionError as e:
-                raise HTTPException(status_code=403, detail=str(e))
-            return {"ok": True, "engine_output": out}
-        except HTTPException:
-            raise
-        except Exception as e:
-            import traceback
-            tb = traceback.format_exc().splitlines()[-25:]
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "code": "TRANSITION_ERROR",
-                    "error_type": type(e).__name__,
-                    "error": str(e),
-                    "trace_tail": tb,
-                },
-            )
-    else:
-        out = constitutional_transition(
-            dpa_id=req.dpa_id,prelude_output=req.prelude_output,
-            judgment_port=_JudgmentPort(req.approval),
-                dpa_apply_port=(NoopDpaApplyPort(_SVC.repo) if env in ("dev","local") else None),
+    # (E) Engine call (v0.8 boundary: router -> facade)
+    # =========================================================
+    judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
+    deps = TransitionDeps(
+        approval_queue=_QUEUE,
+        judgment_port=judgment,
+        dpa_apply_port=NoopDpaApplyPort(),
+    )
+    try:
+        out = run_transition(
+            deps=deps,
+            dpa_id=req.dpa_id,
+            prelude_output=req.prelude_output,
         )
-        return {"ok": True, "engine_output": out}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"ok": True, "engine_output": out}
