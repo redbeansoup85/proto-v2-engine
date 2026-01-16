@@ -214,11 +214,14 @@ def transition(req: TransitionRequest) -> Any:
     # =========================================================
     if env in ("dev", "local"):
         try:
-            out = constitutional_transition(
+            try:
+                out = constitutional_transition(
                 dpa_id=req.dpa_id,prelude_output=req.prelude_output,
                 judgment_port=_JudgmentPort(req.approval),
                 dpa_apply_port=(NoopDpaApplyPort(_SVC.repo) if env in ("dev","local") else None),
-            )
+                )
+            except PermissionError as e:
+                raise HTTPException(status_code=403, detail=str(e))
             return {"ok": True, "engine_output": out}
         except HTTPException:
             raise
