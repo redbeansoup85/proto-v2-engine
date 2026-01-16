@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from core.engine.transition_facade import TransitionDeps, run_transition
+from core.engine.constitutional_transition import constitutional_transition
 from core.judgment.models import HumanDecision, DpaRecord, DpaOption
 from core.judgment.repo import InMemoryDpaRepository
 from core.judgment.persistence.file_repo import FileBackedDpaRepository
@@ -214,13 +214,11 @@ def transition(req: TransitionRequest) -> Any:
     # =========================================================
     if env in ("dev", "local"):
         try:
-            try:
-                out = run_transition(deps=TransitionDeps(approval_queue=_QUEUE, dpa_apply_port=NoopDpaApplyPort()), dpa_id=req.dpa_id,prelude_output=req.prelude_output,
+            out = constitutional_transition(
+                dpa_id=req.dpa_id,prelude_output=req.prelude_output,
                 judgment_port=_JudgmentPort(req.approval),
                 dpa_apply_port=(NoopDpaApplyPort(_SVC.repo) if env in ("dev","local") else None),
-                )
-            except PermissionError as e:
-                raise HTTPException(status_code=403, detail=str(e))
+            )
             return {"ok": True, "engine_output": out}
         except HTTPException:
             raise
