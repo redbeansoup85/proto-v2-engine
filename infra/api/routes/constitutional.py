@@ -14,17 +14,16 @@ from core.judgment.service import DpaService
 
 router = APIRouter(prefix="/v1/constitutional", tags=["constitutional"])
 
-# ---- DEV in-memory wiring (v0.5 LOCK 기준선) ----
+# ---- DEV in-memory wiring (v0.5 LOCK baseline) ----
 _REPO = InMemoryDpaRepository()
 
 
 class _MinimalComposer:
     """
-    v0.5: constitutional E2E를 위해 필요한 최소 Composer.
-    도메인별 Composer는 이후 플러그인으로 교체.
+    v0.5: minimal composer for constitutional E2E.
+    Domain-specific composers will replace this later.
     """
     def compose(self, *, dpa_id: str, event_id: str, context: Dict[str, Any]) -> DpaRecord:
-        # 최소 1개 옵션을 제공해야 HumanDecision이 선택 가능
         opt = DpaOption(
             option_id="opt_approve",
             title="Approve and proceed",
@@ -56,12 +55,8 @@ class ApprovalPayload(BaseModel):
 class TransitionRequest(BaseModel):
     dpa_id: str = "dpa_demo_001"
     event_id: str = "evt_demo_001"
-    # prelude_output은 run_engine adapter가 기대하는 JSON 포맷이어야 함
     prelude_output: Dict[str, Any]
-
     approval: ApprovalPayload = Field(default_factory=ApprovalPayload)
-
-    # DPA state machine을 실제로 통과시키기 위한 인간 결정(서명 포함)
     human_decision: Optional[HumanDecision] = None
 
 
@@ -71,11 +66,7 @@ class SeedReq(BaseModel):
     selected_option_id: str = "opt_approve"
 
 
-
-import os
-
-if os.getenv("METAOS_DEV", "0") == "1":
-    @router.post("/__debug_seed")
+@router.post("/__debug_seed")
 def __debug_seed(req: SeedReq):
     """
     DEV ONLY:
@@ -87,12 +78,7 @@ def __debug_seed(req: SeedReq):
     try:
         _ = _SVC.get_dpa(dpa_id=req.dpa_id)
     except Exception:
-        _SVC.create_dpa(
-            event_id=req.event_id,
-            context={"source": "constitutional_api"},
-            dpa_id=req.dpa_id,
-        )
-
+        _SVC.create_dpa(event_id=req.event_id, context={"source": "constitutional_api"}, dpa_id=req.dpa_id)
 
     # move to reviewing (best-effort)
     try:
@@ -115,43 +101,32 @@ def __debug_seed(req: SeedReq):
 
 @router.post("/transition")
 def transition(req: TransitionRequest) -> Any:
-    # 1) DPA 준비 (없으면 생성)
-    dpa = _SVC.repo.get(req.dpa_id)
-    if dpa is None:
-        _SVC.create_dpa(
-            event_id=req.event_id,
-            context={"source": "constitutional_api"},
-            dpa_id=req.dpa_id,
-        )
+    # (A) Fail-closed for APPROVE without human_decision (no bypass)
+    if req.approval.decision == "APPROVE" and req.human_decision is None:
+        raise HTTPException(status_code=403, detail="Missing human_decision (no bypass)")
 
-    # 2) 승인 payload가 REJECT면, DPA는 굳이 apply까지 갈 필요 없음 (헌법이 fail-closed로 막아야 함)
-    # 하지만 "apply gate"가 존재해야 하므로, APPROVE일 때만 DPA를 승인+apply로 진입시킴.
+    # (B) Ensure DPA exists
+    if _SVC.repo.get(req.dpa_id) is None:
+        _SVC.create_dpa(event_id=req.event_id, context={"source": "constitutional_api"}, dpa_id=req.dpa_id)
+
+    # (C) If APPROVE, drive DPA to APPROVED (best-effort) and APPLY (best-effort / idempotent)
     if req.approval.decision == "APPROVE":
-        # human_decision이 없으면 최소값으로 채움 (v0.5 dev convenience)
-        if req.human_decision is None:
-            raise HTTPException(status_code=403, detail="Missing human_decision (no bypass)")
-            req.human_decision = HumanDecision(
-                selected_option_id="opt_approve",
-                reason_codes=["DEV_DEFAULT"],
-                reason_note="dev default decision",
-                approver_name="Tester",
-                approver_role="Owner",
-                signature="Tester/Owner",
-            )
+        try:
+            _SVC.start_review(dpa_id=req.dpa_id, reviewer=req.approval.authority_id)
+        except Exception:
+            pass
 
         try:
-            _SVC.submit_human_decision(dpa_id=req.dpa_id, decision=req.human_decision)
+            _SVC.submit_human_decision(dpa_id=req.dpa_id, decision=req.human_decision)  # type: ignore[arg-type]
         except Exception:
-            # 이미 승인된 경우 등은 그대로 진행
             pass
 
         try:
             _SVC.apply(dpa_id=req.dpa_id)
         except Exception:
-            # 이미 APPLIED(terminal)면 idempotent로 허용
             pass
 
-    # 3) JudgmentPort: request approval을 그대로 제공하는 최소 포트
+    # (D) Minimal JudgmentPort wrapper from request approval
     class _ApprovalObj:
         def __init__(self, a: ApprovalPayload):
             self.approval_id = "appr_req"
@@ -170,7 +145,7 @@ def transition(req: TransitionRequest) -> Any:
 
     jp = _JudgmentPort(req.approval)
 
-    # 4) 헌법 전이 실행 (DPA apply gate + run_engine)
+    # (E) Execute constitutional transition (DPA apply gate + run_engine)
     try:
         out = constitutional_transition(
             dpa_id=req.dpa_id,
@@ -182,7 +157,6 @@ def transition(req: TransitionRequest) -> Any:
         )
         return {"ok": True, "engine_output": out}
     except PermissionError as e:
-        print("[constitutional] PermissionError:", str(e))
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
