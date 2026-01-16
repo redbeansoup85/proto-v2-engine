@@ -203,13 +203,6 @@ def transition(req: TransitionRequest) -> Any:
             self.decided_at = a.decided_at
             self.immutable = a.immutable
 
-    class _JudgmentPort:
-        def __init__(self, a: ApprovalPayload):
-            self._a = a
-
-        def get_approval(self, *, dpa_id: str):
-            return _ApprovalObj(self._a)
-
     # =========================================================
     # =========================================================
     # (E) Engine call (v0.8 boundary: router -> facade)
