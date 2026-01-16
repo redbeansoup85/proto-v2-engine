@@ -1,2 +1,23 @@
-[tool.pytest.ini_options]
-pythonpath = ["."]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proto-v2-engine"
+version = "0.0.0"
+dependencies = ["pydantic>=2.0", "fastapi>=0.100"]
+requires-python = ">=3.9"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = [
+  "data",
+  "data.*",
+  "logs",
+  "logs.*",
+  "jobs",
+  "jobs.*",
+]
