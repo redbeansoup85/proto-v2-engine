@@ -215,8 +215,10 @@ def transition(req: TransitionRequest) -> Any:
         dpa_apply_port=NoopDpaApplyPort(),
     )
     try:
+        approval = judgment.get_approval(dpa_id=req.dpa_id)
+
         out = run_transition(
-            execution_envelope=_build_execution_envelope(approver_id=req.approval.authority_id, approval_ref=(req.approval_id or "appr_req")),
+            execution_envelope=_build_execution_envelope(approver_id=approval.authority_id, approval_ref=approval.approval_id),
             deps=deps,
             dpa_id=req.dpa_id,
             prelude_output=req.prelude_output,
