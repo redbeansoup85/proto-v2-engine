@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import inspect
 
 from core.engine.constitutional_transition import constitutional_transition
+from core.contracts.execution_envelope import ExecutionEnvelope
 from core.judgment.ports import ApprovalQueuePort, DpaApplyPort
 from core.judgment.persistence.noop_apply_port import NoopDpaApplyPort
 
@@ -27,6 +28,7 @@ def run_transition(
     deps: TransitionDeps,
     dpa_id: str,
     prelude_output: Any,
+    execution_envelope: "Optional[ExecutionEnvelope]" = None,
 ) -> Any:
     candidate_kwargs: Dict[str, Any] = {
         "dpa_id": dpa_id,
@@ -35,8 +37,14 @@ def run_transition(
         "dpa_apply_port": deps.dpa_apply_port,
         "strict": True,
         "emotion_port": None,
+          "execution_envelope": execution_envelope,
     }
 
     sig = inspect.signature(constitutional_transition)
     safe_kwargs = {k: v for k, v in candidate_kwargs.items() if k in sig.parameters}
+
+    env = safe_kwargs.get("execution_envelope")
+    if env is None:
+        raise PermissionError("No ExecutionEnvelope (fail-closed)")
+
     return constitutional_transition(**safe_kwargs)
