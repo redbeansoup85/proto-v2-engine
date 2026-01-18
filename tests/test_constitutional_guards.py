@@ -210,6 +210,7 @@ def _exec_env_for_apply() -> ExecutionEnvelope:
     payload = {
         "meta": {
             "contract_id": "01JEXECENV_TEST_0001",
+                "envelope_id": "env-test-0001",
             "issued_at": now.isoformat(),
             "expires_at": (now + timedelta(seconds=60)).isoformat(),
             "issuer": "tests",

@@ -31,6 +31,12 @@ def run_execution(*, envelope: ExecutionEnvelope, port: Any, ctx: ExecutionConte
     if not isinstance(envelope, ExecutionEnvelope):
         raise ContractMalformedError("Envelope is not an ExecutionEnvelope instance")
 
+    # 0.1) context sanity (fail-closed)
+    if not (0.0 <= float(ctx.confidence) <= 1.0):
+        raise ContractMalformedError(f"Invalid confidence: {ctx.confidence}")
+    if not ctx.input_sources:
+        raise ContractConstraintError("Missing input_sources (fail-closed)")
+
     # 1) expiry
     if envelope.is_expired():
         raise ContractExpiredError("ExecutionEnvelope expired")

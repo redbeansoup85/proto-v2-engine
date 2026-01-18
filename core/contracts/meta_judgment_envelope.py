@@ -11,6 +11,7 @@ RetentionPolicy = Literal["volatile", "append_only", "immutable"]
 
 class EnvelopeMeta(BaseModel):
     contract_id: str = Field(..., min_length=8)
+    envelope_id: str = Field(..., min_length=8)
     issued_at: datetime
     expires_at: Optional[datetime] = None
     issuer: str = Field(..., min_length=3)

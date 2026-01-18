@@ -1,7 +1,12 @@
 from __future__ import annotations
+from uuid import uuid4
 from core.engine.transition_facade import TransitionDeps, run_transition
+from infra.api.audit_sink import audit_envelope_event
 from core.contracts.execution_envelope import ExecutionEnvelope
 from core.judgment.adapters.judgment_from_queue import ApprovalQueueJudgmentPort
+
+_REPO = None
+_SVC = None
 
 from datetime import datetime
 from typing import Any, Dict, Optional, Literal
@@ -58,7 +63,9 @@ class _MinimalComposer:
         )
 
 
-_SVC = DpaService(repo=_REPO, composer=_MinimalComposer())  # type: ignore[arg-type]
+_REPO = None
+_SVC = None
+# type: ignore[arg-type]
 
 
 # ---- Request/Response ----
@@ -170,25 +177,25 @@ def transition(req: TransitionRequest) -> Any:
     # =========================================================
     # (B) Ensure DPA exists
     # =========================================================
-    if _SVC.repo.get(req.dpa_id) is None:
-        _SVC.create_dpa(event_id=req.event_id, context={"source": "constitutional_api"}, dpa_id=req.dpa_id)
+    if _get_service().repo.get(req.dpa_id) is None:
+        _get_service().create_dpa(event_id=req.event_id, context={"source": "constitutional_api"}, dpa_id=req.dpa_id)
 
     # =========================================================
     # (C) If APPROVE, drive DPA to APPROVED and APPLY (best-effort)
     # =========================================================
     if req.approval.decision == "APPROVE":
         try:
-            _SVC.start_review(dpa_id=req.dpa_id, reviewer=req.approval.authority_id)
+            _get_service().start_review(dpa_id=req.dpa_id, reviewer=req.approval.authority_id)
         except Exception:
             pass
 
         try:
-            _SVC.submit_human_decision(dpa_id=req.dpa_id, decision=req.human_decision)  # type: ignore[arg-type]
+            _get_service().submit_human_decision(dpa_id=req.dpa_id, decision=req.human_decision)  # type: ignore[arg-type]
         except Exception:
             pass
 
         try:
-            _SVC.apply(dpa_id=req.dpa_id)
+            _get_service().apply(dpa_id=req.dpa_id)
         except Exception:
             pass
     # =========================================================
@@ -286,6 +293,7 @@ def _build_execution_envelope(*, approver_id: str, approval_ref: str) -> Executi
     payload = {
         "meta": {
             "contract_id": f"exec_env__{approval_ref}",
+            "envelope_id": f"env__{approval_ref}__{uuid4()}",
             "issued_at": now.isoformat(),
             "expires_at": (now + timedelta(minutes=10)).isoformat(),
             "issuer": "infra.api.routes.constitutional",
