@@ -1,5 +1,6 @@
 from __future__ import annotations
 from core.engine.transition_facade import TransitionDeps, run_transition
+from core.contracts.execution_envelope import ExecutionEnvelope
 from core.judgment.adapters.judgment_from_queue import ApprovalQueueJudgmentPort
 
 from datetime import datetime
@@ -215,6 +216,7 @@ def transition(req: TransitionRequest) -> Any:
     )
     try:
         out = run_transition(
+            execution_envelope=_build_execution_envelope(approver_id=req.approval.authority_id, approval_ref=(req.approval_id or "appr_req")),
             deps=deps,
             dpa_id=req.dpa_id,
             prelude_output=req.prelude_output,
@@ -222,3 +224,39 @@ def transition(req: TransitionRequest) -> Any:
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
     return {"ok": True, "engine_output": out}
+
+
+def _build_execution_envelope(*, approver_id: str, approval_ref: str) -> ExecutionEnvelope:
+    """
+    API boundary issuance: ExecutionEnvelope must be minted at the boundary (infra/api), never inside core.
+    Fail-closed defaults.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "meta": {
+            "contract_id": f"exec_env__{approval_ref}",
+            "issued_at": now.isoformat(),
+            "expires_at": (now + timedelta(minutes=10)).isoformat(),
+            "issuer": "infra.api.routes.constitutional",
+            "version": "1.0.0",
+        },
+        "authority": {
+            "domain": "constitutional_transition",
+            "allowed_actions": ["apply"],
+            "forbidden_actions": ["execute_trade", "webhook", "notify", "publish", "emit"],
+            "confidence_floor": 0.0,
+        },
+        "constraints": {
+            "latency_budget_ms": 2000,
+            "resource_ceiling": {"cpu_pct": 90.0, "mem_mb": 1024},
+            "data_scope": {
+                "allowed_sources": ["judgment:approval_queue"],
+                "forbidden_sources": ["net:public_web"],
+            },
+        },
+        "audit": {"trace_level": "standard", "retention_policy": "append_only"},
+        "human_approval": {"approver_id": approver_id, "approval_ref": approval_ref},
+    }
+    return ExecutionEnvelope.model_validate(payload)

@@ -63,3 +63,12 @@ for _name, _val in vars(_legacy).items():
         globals()[_name] = _val
 
 __all__ = [k for k in globals().keys() if k and k[0].isupper()]
+
+# Contract enforcement errors
+from .errors import (
+    ContractViolationError,
+    ContractExpiredError,
+    ContractMalformedError,
+    ContractForbiddenActionError,
+    ContractConstraintError,
+)
