@@ -37,7 +37,7 @@ def run_transition(
         "dpa_apply_port": deps.dpa_apply_port,
         "strict": True,
         "emotion_port": None,
-          "execution_envelope": execution_envelope,
+        "execution_envelope": execution_envelope,
     }
 
     sig = inspect.signature(constitutional_transition)
