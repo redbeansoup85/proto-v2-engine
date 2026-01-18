@@ -191,19 +191,6 @@ def transition(req: TransitionRequest) -> Any:
             _SVC.apply(dpa_id=req.dpa_id)
         except Exception:
             pass
-
-    # =========================================================
-    # (D) JudgmentPort wrapper
-    # =========================================================
-    class _ApprovalObj:
-        def __init__(self, a: ApprovalPayload):
-            self.approval_id = req.approval_id or "appr_req"
-            self.decision = a.decision
-            self.authority_id = a.authority_id
-            self.rationale_ref = a.rationale_ref
-            self.decided_at = a.decided_at
-            self.immutable = a.immutable
-
     # =========================================================
     # =========================================================
     # (E) Engine call (v0.8 boundary: router -> facade)
