@@ -208,14 +208,28 @@ def transition(req: TransitionRequest) -> Any:
     # =========================================================
     # (E) Engine call (v0.8 boundary: router -> facade)
     # =========================================================
-    judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
-    deps = TransitionDeps(
-        approval_queue=_QUEUE,
-        judgment_port=judgment,
-        dpa_apply_port=NoopDpaApplyPort(),
-    )
+    _raw_judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
+
+    class _CachedJudgmentPort:
+        def __init__(self, *, dpa_id: str, approval_obj: object):
+            self._dpa_id = dpa_id
+            self._approval = approval_obj
+
+        def get_approval(self, *, dpa_id: str):
+            if dpa_id != self._dpa_id:
+                raise PermissionError("Approval cache mismatch (fail-closed)")
+            return self._approval
     try:
-        approval = judgment.get_approval(dpa_id=req.dpa_id)
+        approval = _raw_judgment.get_approval(dpa_id=req.dpa_id)
+
+        cached_judgment = _CachedJudgmentPort(dpa_id=req.dpa_id, approval_obj=approval)
+
+
+        deps = TransitionDeps(
+            approval_queue=_QUEUE,
+            judgment_port=cached_judgment,
+            dpa_apply_port=NoopDpaApplyPort(),
+        )
 
         out = run_transition(
             execution_envelope=_build_execution_envelope(approver_id=approval.authority_id, approval_ref=approval.approval_id),
