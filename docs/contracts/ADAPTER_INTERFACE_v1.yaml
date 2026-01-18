@@ -1,0 +1,149 @@
+version: 1
+record_id: ADAPTER-IFACE-METAOS-V1-2026-01
+system: meta_os
+level: L4
+status: LOCKED
+effective_date: 2026-01-18
+
+purpose:
+  - Enforce a hard boundary between Meta OS Core and all external/domain systems.
+  - Prevent domain logic contamination of Core.
+  - Ensure all real-world interaction remains human-owned and audit-traceable.
+
+core_principles:
+  - core_never_touches_reality_directly: true
+  - all_external_io_must_go_through_adapter: true
+  - adapter_is_transform_only_not_judgment: true
+  - allowed_mode_read_signal_only: true
+  - no_automatic_execution: true
+  - fail_closed_on_violation: true
+
+roles:
+  meta_os_core:
+    responsibilities:
+      - validate_contract
+      - normalize_inputs
+      - produce_observations_and_recommendations
+      - emit_audit_events
+    forbidden:
+      - direct_external_calls
+      - direct_device_control
+      - initiating_actions
+      - silent_state_transition
+  adapter:
+    responsibilities:
+      - ingestion_from_domain_sources
+      - schema_mapping_to_meta_os_inputs
+      - redaction_and_minimization
+      - emission_of_domain_events_to_audit_sink
+    forbidden:
+      - autonomous_decisions
+      - autonomous_actions
+      - hidden_side_effects
+      - writing_to_external_systems_without_human_approval
+  judgment_os:
+    responsibilities:
+      - present_options
+      - require_human_confirmation
+      - record_human_decisions
+  human_owner:
+    responsibilities:
+      - approve_state_transitions
+      - approve_any_actionable_outputs
+      - approve_gate3_open
+
+interface:
+  inbound:
+    description: Domain -> Adapter -> Meta OS Core (read/signal only)
+    allowed_event_types:
+      - observation
+      - sensor_frame_reference
+      - risk_signal
+      - context_update
+      - audit_heartbeat
+    required_fields:
+      - event_id
+      - ts_iso
+      - domain_id
+      - site_id
+      - source
+      - payload
+      - schema_version
+    constraints:
+      - payload_must_be_minimized: true
+      - pii_redaction_required: true
+      - content_addressable_refs_preferred: true
+
+  outbound:
+    description: Meta OS Core -> Judgment OS -> Human -> (optional) Domain
+    allowed_output_types:
+      - explanation
+      - risk_summary
+      - recommended_options
+      - policy_rationale
+      - audit_event
+    forbidden_output_types:
+      - direct_command
+      - autonomous_action
+      - implicit_approval
+    constraints:
+      - all_actionable_items_require_human_approval: true
+      - outputs_must_include_audit_ref: true
+
+gating:
+  gate3:
+    default: CLOSED
+    open_requires:
+      - gate3_lock_document: docs/governance/L4/GATE_3_LOCK.md
+      - narrative_lock_document: docs/governance/L4/EXTERNAL_NARRATIVE_LOCK.md
+      - human_owner_approval: true
+      - scope_single_domain: true
+      - duration_finite: true
+    when_open:
+      still_forbidden:
+        - autonomous_action
+        - autonomous_decision
+        - direct_external_control
+
+domains:
+  childcare_safety:
+    adapter_id: adapter_childcare_v1
+    mode: read_signal_only
+    allowed_sources:
+      - cctv_reference
+      - incident_button
+      - room_state_update
+      - staff_note_reference
+      - sensor_risk_signal
+    forbidden:
+      - auto_alarm_trigger
+      - auto_staff_instruction
+      - auto_reporting_to_regulator
+
+audit:
+  required: true
+  sink:
+    type: append_only
+  events_must_include:
+    - event_id
+    - correlation_id
+    - actor
+    - action
+    - outcome
+    - ts_iso
+    - refs
+
+violation_policy:
+  detection:
+    - forbidden_output_type_emitted
+    - adapter_side_effect_detected
+    - missing_human_approval_on_actionable_item
+    - direct_external_call_from_core
+  response:
+    - force_close_gate3
+    - suspend_external_io
+    - emit_audit_event_violation
+    - require_human_owner_reapproval
+
+immutability:
+  non_editable_without_amendment: true
