@@ -193,6 +193,8 @@ def transition(req: TransitionRequest) -> Any:
             pass
     # =========================================================
     # =========================================================
+
+
     # (E) Engine call (v0.8 boundary: router -> facade)
     # =========================================================
     raw_judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
@@ -206,11 +208,13 @@ def transition(req: TransitionRequest) -> Any:
             if dpa_id != self._dpa_id:
                 raise PermissionError("Approval cache mismatch (fail-closed)")
             return self._approval
+
     try:
         approval = raw_judgment.get_approval(dpa_id=req.dpa_id)
-
-        cached_judgment = _CachedJudgmentPort(dpa_id=req.dpa_id, approval_obj=approval)
-
+        cached_judgment = _CachedJudgmentPort(
+            dpa_id=req.dpa_id,
+            approval_obj=approval,
+        )
 
         deps = TransitionDeps(
             approval_queue=_QUEUE,
@@ -218,16 +222,58 @@ def transition(req: TransitionRequest) -> Any:
             dpa_apply_port=NoopDpaApplyPort(),
         )
 
+        envelope = _build_execution_envelope(
+            approver_id=approval.authority_id,
+            approval_ref=approval.approval_id,
+        )
+
+        try:
+            audit_envelope_event(
+                event="mint",
+                dpa_id=req.dpa_id,
+                approval_id=approval.approval_id,
+                authority_id=approval.authority_id,
+                envelope_meta=envelope.meta if hasattr(envelope, "meta") else {},
+                outcome="allow",
+            )
+        except Exception:
+            pass
+
         out = run_transition(
-            execution_envelope=_build_execution_envelope(approver_id=approval.authority_id, approval_ref=approval.approval_id),
+            execution_envelope=envelope,
             deps=deps,
             dpa_id=req.dpa_id,
             prelude_output=req.prelude_output,
         )
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    return {"ok": True, "engine_output": out}
 
+        try:
+            audit_envelope_event(
+                event="enforce",
+                dpa_id=req.dpa_id,
+                approval_id=approval.approval_id,
+                authority_id=approval.authority_id,
+                envelope_meta=envelope.meta if hasattr(envelope, "meta") else {},
+                outcome="allow",
+            )
+        except Exception:
+            pass
+
+    except PermissionError as e:
+        try:
+            audit_envelope_event(
+                event="enforce",
+                dpa_id=req.dpa_id,
+                approval_id=approval.approval_id if "approval" in locals() else "n/a",
+                authority_id=approval.authority_id if "approval" in locals() else "n/a",
+                envelope_meta=envelope.meta if "envelope" in locals() and hasattr(envelope, "meta") else {},
+                outcome="deny",
+                reason=str(e),
+            )
+        except Exception:
+            pass
+        raise HTTPException(status_code=403, detail=str(e))
+
+    return {"ok": True, "engine_output": out}
 
 def _build_execution_envelope(*, approver_id: str, approval_ref: str) -> ExecutionEnvelope:
     """
