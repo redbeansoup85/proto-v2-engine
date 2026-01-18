@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 import json
 import pytest
+from core.contracts.execution_envelope import ExecutionEnvelope
 
 from core.engine.constitutional_transition import (
     JudgmentApproval,
@@ -153,6 +154,7 @@ def test_emotion_not_gate_and_apply_required():
         prelude_output=_load_demo_payload(),
         strict=False,
         emotion_port=FakeEmotionPort(),
+            execution_envelope=_exec_env_for_apply(),
     )
     out2 = constitutional_transition(
         dpa_id="dpa_003",
@@ -161,6 +163,7 @@ def test_emotion_not_gate_and_apply_required():
         prelude_output=_load_demo_payload(),
         strict=False,
         emotion_port=None,
+            execution_envelope=_exec_env_for_apply(),
     )
 
     # EmotionPort는 gate 조건이 아니므로 둘 다 성공해야 함
@@ -199,3 +202,31 @@ def test_approve_but_not_applied_blocks_execution():
             prelude_output=_load_demo_payload(),
             strict=False,
         )
+
+
+def _exec_env_for_apply() -> ExecutionEnvelope:
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    payload = {
+        "meta": {
+            "contract_id": "01JEXECENV_TEST_0001",
+            "issued_at": now.isoformat(),
+            "expires_at": (now + timedelta(seconds=60)).isoformat(),
+            "issuer": "tests",
+            "version": "1.0.0",
+        },
+        "authority": {
+            "domain": "demo",
+            "allowed_actions": ["apply"],
+            "forbidden_actions": [],
+            "confidence_floor": 0.0,
+        },
+        "constraints": {
+            "latency_budget_ms": 1000,
+            "resource_ceiling": {"cpu_pct": 90.0, "mem_mb": 1024},
+            "data_scope": {"allowed_sources": ["judgment:approval_queue"], "forbidden_sources": []},
+        },
+        "audit": {"trace_level": "standard", "retention_policy": "append_only"},
+        "human_approval": {"approver_id": "human_001", "approval_ref": "APPROVAL-REF-TEST-001"},
+    }
+    return ExecutionEnvelope.model_validate(payload)

@@ -5,6 +5,9 @@ from datetime import datetime
 from typing import Any, Optional, Protocol
 
 from core.engine.run_engine import run_engine
+from core.contracts.execution_envelope import ExecutionEnvelope
+from core.contracts.actions import ExecutionAction
+from core.execution.executor import run_execution, ExecutionContext
 from core.judgment.errors import PolicyError
 
 
@@ -57,6 +60,7 @@ def constitutional_transition(
     strict: bool = True,
     emotion_port: Optional[EmotionPort] = None,
     dpa_apply_port: Optional[DpaApplyPort] = None,
+    execution_envelope: Optional[ExecutionEnvelope] = None,
 ) -> Any:
     """
     v0.3 LOCK semantics:
@@ -97,10 +101,24 @@ def constitutional_transition(
     if dpa_apply_port is None:
         raise PermissionError("No DPA apply port (fail-closed)")
 
+    if execution_envelope is None:
+        raise PermissionError("No ExecutionEnvelope (fail-closed)")
+
     try:
         dpa = dpa_apply_port.get_dpa(dpa_id=dpa_id)
         if not _is_applied_status(dpa):
-            dpa_apply_port.apply(dpa_id=dpa_id, selected_option_id=approval.selected_option_id, context=None)
+            run_execution(
+                envelope=execution_envelope,
+                port=dpa_apply_port,
+                ctx=ExecutionContext(
+                    action=ExecutionAction.apply,
+                    confidence=1.0,
+                    input_sources=["judgment:approval_queue"],
+                    dpa_id=dpa_id,
+                    selected_option_id=approval.selected_option_id,
+                    context=None,
+                ),
+            )
     except PolicyError as e:
         # Preserve policy error details for API/debug visibility
         code = getattr(e, "code", "POLICY_ERROR")
