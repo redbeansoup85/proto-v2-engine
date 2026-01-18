@@ -195,7 +195,7 @@ def transition(req: TransitionRequest) -> Any:
     # =========================================================
     # (E) Engine call (v0.8 boundary: router -> facade)
     # =========================================================
-    _raw_judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
+    raw_judgment = ApprovalQueueJudgmentPort(approval_queue=_QUEUE)  # type: ignore
 
     class _CachedJudgmentPort:
         def __init__(self, *, dpa_id: str, approval_obj: object):
@@ -207,7 +207,7 @@ def transition(req: TransitionRequest) -> Any:
                 raise PermissionError("Approval cache mismatch (fail-closed)")
             return self._approval
     try:
-        approval = _raw_judgment.get_approval(dpa_id=req.dpa_id)
+        approval = raw_judgment.get_approval(dpa_id=req.dpa_id)
 
         cached_judgment = _CachedJudgmentPort(dpa_id=req.dpa_id, approval_obj=approval)
 
