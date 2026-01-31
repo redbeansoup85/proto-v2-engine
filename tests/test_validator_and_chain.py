@@ -1,5 +1,6 @@
 from core.hasher import compute_payload_hash, compute_event_id
 from core.validator import KNOWN_SCHEMA_HASH
+from core.constants import KNOWN_SCHEMA_HASH
 from core.validator import KNOWN_SCHEMA_HASH
 from core.validator import validate_core_event_fail_closed
 from core.chain_walker import walk_and_verify_chain

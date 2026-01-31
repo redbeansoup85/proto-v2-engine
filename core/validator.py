@@ -5,12 +5,12 @@ from typing import Any, Dict, Optional, Tuple
 import re
 
 from .hasher import compute_event_id, compute_payload_hash
+from .constants import KNOWN_SCHEMA_ID, KNOWN_SCHEMA_HASH
 
 # =========================
 # LOCKED CONSTANTS (Phase-1)
 # =========================
 
-KNOWN_SCHEMA_ID = "JOS-JUDGMENT-COMMON-v1.0"
 KNOWN_SCHEMA_HASH = "sha256:023ef3e62f0c31ea2b813c561d413727eebafb7c824d9fe574c4d7b6b5ddb258"
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
