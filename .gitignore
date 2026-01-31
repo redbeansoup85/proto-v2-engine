@@ -13,3 +13,14 @@ var/metaos/
 Judgment_Data/domain/**
 Judgment_Data/core/*.jsonl
 !Judgment_Data/core/sample_*.jsonl
+
+# --- LOCK hygiene: never commit local DB artifacts ---
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.bak.*
+*.log
+
+# common local artifacts
+.DS_Store
