@@ -1,0 +1,8 @@
+from fastapi import FastAPI
+from infra.api.endpoints.execution import router as execution_router
+from infra.api.endpoints.approvals import router as approvals_router
+
+app = FastAPI(title="Proto V2 Engine API")
+
+app.include_router(execution_router, prefix="/api/v1/execution")
+app.include_router(approvals_router)

@@ -1,0 +1,44 @@
+[1/7] Reset DB
+[2/7] Compile alembic env.py
+[3/7] Alembic upgrade
+[4/7] Tables
+alembic_version           approvals               
+approval_decision_events  execution_runs          
+[5/7] Alembic version
+ensure_execution_runs_0001
+[6/7] Alembic current / heads
+Current revision(s) for sqlite+aiosqlite:////Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/infra/api/test.db:
+Rev: ensure_execution_runs_0001 (head)
+Parent: 7f0b460002ff
+Path: /Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/infra/api/alembic/versions/ensure_execution_runs_0001.py
+
+    ensure execution_runs exists (fail-closed hotfix)
+    
+    Revision ID: ensure_execution_runs_0001
+    Revises: 7f0b460002ff
+    Create Date: 2026-01-22
+
+ensure_execution_runs_0001 (head)
+[7/7] Pytest
+...........................................                              [100%]
+=============================== warnings summary ===============================
+infra/api/app.py:109
+  /Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/infra/api/app.py:109: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+.venv/lib/python3.9/site-packages/fastapi/applications.py:4576
+  /Users/seunghyunpyo/Desktop/meta-os/proto-v2-engine/.venv/lib/python3.9/site-packages/fastapi/applications.py:4576: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+43 passed, 2 warnings in 0.26s

@@ -9,3 +9,7 @@ build/
 
 # metaos runtime data (local/dev)
 var/metaos/
+# Judgment Data
+Judgment_Data/domain/**
+Judgment_Data/core/*.jsonl
+!Judgment_Data/core/sample_*.jsonl

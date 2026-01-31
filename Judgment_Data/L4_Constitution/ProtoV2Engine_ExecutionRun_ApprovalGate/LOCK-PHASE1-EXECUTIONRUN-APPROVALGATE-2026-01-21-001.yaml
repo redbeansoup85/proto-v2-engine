@@ -1,0 +1,42 @@
+record_id: LOCK-PHASE1-EXECUTIONRUN-APPROVALGATE-2026-01-21-001
+system: proto-v2-engine
+component: infra/api
+domain: execution-control
+phase: phase1
+status: locked
+classification: internal
+mutability: forbidden
+effective_date: "2026-01-21"
+
+db:
+  engine: sqlite
+  file: infra/api/dev.db
+
+invariants:
+  - idempotency_unique_key: [project_id, idempotency_key]
+  - default_fail_closed:
+      status: BLOCKED
+      blocked_reason: approval_pending
+  - approval_1_to_1:
+      unique: approvals.execution_run_id
+      fk: approvals.execution_run_id -> execution_runs.id
+  - fk_enforced: PRAGMA foreign_keys=ON
+
+endpoints:
+  - POST /api/v1/execution/run
+  - GET /api/v1/execution/run/by_key
+  - GET /api/v1/execution/run/{execution_id}
+  - POST /approvals/{execution_id}/approve
+  - POST /approvals/{execution_id}/reject
+
+forbidden:
+  - execute
+  - dispatch
+  - webhook
+  - notify
+  - external_http
+
+acceptance_evidence:
+  create_returns_blocked: true
+  approve_transitions_to_run: true
+  dedup_returns_same_execution_id: true

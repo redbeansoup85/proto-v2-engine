@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from typing import Optional
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, DateTime, ForeignKey, text
+
+from infra.api.endpoints.models.base import Base
+
+
+class Approval(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    # FK -> execution_runs.execution_id
+    execution_run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("execution_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+
+    requester_type: Mapped[str] = mapped_column(String(16), nullable=False)  # system|human
+    requester_id: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    mode: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        server_default=text("'single'"),
+    )  # single|multi
+
+    required_approvers: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("1"),
+    )
+
+    timeout_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("3600"),
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        server_default=text("'pending'"),
+    )  # pending|approved|rejected|expired
+
+    requested_at: Mapped[str] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    resolved_at: Mapped[Optional[str]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    approved_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("0"),
+    )
+
+    rejected_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("0"),
+    )
