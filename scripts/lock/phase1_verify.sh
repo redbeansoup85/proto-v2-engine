@@ -32,3 +32,6 @@ echo "[7/7] Pytest"
 pytest -q
 
 echo "DONE: Phase-1 LOCK verify OK (DB=$DB)"
+
+# Schema registry hash check (fail-closed)
+python tools/verify_schema_registry.py

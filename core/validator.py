@@ -190,7 +190,7 @@ def validate_core_event_fail_closed(event: Dict[str, Any]) -> Tuple[bool, str]:
         if not ok:
             return False, msg
         if integ["schema_hash"] != KNOWN_SCHEMA_HASH:
-            return False, "schema_hash does not match locked known constant"
+            return False, "schema_hash does not match locked constant"
 
         ok, _, msg = _require_sha256_prefixed(integ.get("payload_hash"), "integrity.payload_hash")
         if not ok:
