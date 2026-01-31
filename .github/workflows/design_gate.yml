@@ -71,3 +71,41 @@ jobs:
         run: |
           chmod +x scripts/lock/phase1_verify.sh
           ./scripts/lock/phase1_verify.sh
+  phase2-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install alembic aiosqlite sqlalchemy pytest
+
+      - name: Run Phase-2 verify
+        run: |
+          chmod +x scripts/lock/phase2_verify.sh
+          ./scripts/lock/phase2_verify.sh
+
+  phase2-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install alembic aiosqlite sqlalchemy pytest
+
+      - name: Run Phase-2 verify
+        run: |
+          chmod +x scripts/lock/phase2_verify.sh
+          ./scripts/lock/phase2_verify.sh

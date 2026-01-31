@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT"
-
-DB="$ROOT/infra/api/test.db"
-
-echo "[1/4] Reset DB"
+echo "[1/5] Reset DB"
+DB="$(pwd)/infra/api/test.db"
 rm -f "$DB"
 sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
 
-echo "[2/4] Export DATABASE_URL"
+echo "[2/5] Export DATABASE_URL (FAIL-CLOSED)"
 export DATABASE_URL="sqlite+aiosqlite:///$DB"
 
-echo "[3/4] Alembic upgrade"
+echo "[3/5] Alembic upgrade"
 alembic -c infra/api/alembic.ini -q upgrade head
 
-echo "[4/4] Phase-2 tests"
-pytest -q tests/phase2/test_execution_adapter_fail_closed.py
+echo "[4/5] Phase-2 Pytest"
+pytest -q tests/phase2
 
 echo "DONE: Phase-2 verify OK (DB=$DB)"
