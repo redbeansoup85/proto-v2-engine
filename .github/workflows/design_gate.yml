@@ -71,6 +71,7 @@ jobs:
         run: |
           chmod +x scripts/lock/phase1_verify.sh
           ./scripts/lock/phase1_verify.sh
+
   phase2-verify:
     runs-on: ubuntu-latest
     steps:
