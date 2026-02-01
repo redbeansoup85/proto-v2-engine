@@ -102,6 +102,6 @@ jobs:
           export DATABASE_URL="sqlite+aiosqlite:///$DB"
 
           python -m py_compile infra/api/alembic/env.py
-          alembic -c infra/api/alembic.ini -q upgrade head
+          python -m alembic -c infra/api/alembic.ini -q upgrade head
 
           pytest -q
