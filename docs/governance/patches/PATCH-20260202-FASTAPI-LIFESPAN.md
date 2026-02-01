@@ -1,6 +1,7 @@
 # 🔒 LOCKDOC — Patch Record (FastAPI lifespan migration)
 
 ## 1) Metadata (Immutable)
+
 ```yaml
 DOCUMENT_ID: LOCKDOC-PATCH-FASTAPI-LIFESPAN-v1.0
 SYSTEM: Proto Meta Engine v2 / proto-v2-engine
@@ -13,13 +14,11 @@ CHANGE_TYPE: A-PATCH
 RISK: low
 BEHAVIOR_CHANGE: none (expected)
 
-2) Summary
+2) Change Summary
 
-Replaced deprecated FastAPI on_event startup hook with lifespan.
+Replace deprecated FastAPI on_event usage with lifespan handler.
 
-목적: deprecation 제거 및 lifecycle 경계 미래 대응.
-
-의도된 기능적 변경 없음.
+Goal: deprecation hardening without behavior change.
 
 3) Verification
 
@@ -40,3 +39,4 @@ Commit: bd636de
 Tag: LOCKDOC-PATCH-20260202-FASTAPI-LIFESPAN
 
 CI Run: 21569973947
+```
