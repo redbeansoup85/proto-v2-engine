@@ -33,7 +33,7 @@ jobs:
 
       - name: Patch registry hashes (write) then fail if diff exists
         run: |
-          python tools/patch_registry_hashes.py Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl --base Judgment_Data --write
+          python tools/patch_registry_hashes.py Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl --base . --write
           if ! git diff --quiet -- Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl; then
             echo "Fail-Closed: registry hashes were outdated. Commit the patched files." >&2
             git diff -- Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl || true
