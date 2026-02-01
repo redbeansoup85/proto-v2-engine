@@ -18,3 +18,4 @@ echo "[3/4] Phase-2 tests"
 pytest -q tests/phase2
 
 echo "DONE: Phase-2 verify OK (DB=$DB)"
+echo "TIP: If you want to run additional pytest commands, run: export DATABASE_URL=\"sqlite+aiosqlite:///$DB\""
