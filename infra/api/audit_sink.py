@@ -32,3 +32,8 @@ def emit_audit_event(event: Dict[str, Any]) -> None:
         }
         sys.stderr.write(json.dumps(fallback) + "\n")
         sys.stderr.flush()
+
+
+# Backward-compatible placeholder (if other modules call it)
+def audit_envelope_event(*args, **kwargs):
+    emit_audit_event({"event_type": "dummy_audit_event"})

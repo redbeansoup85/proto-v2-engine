@@ -1,33 +1,115 @@
-from __future__ import annotations
-
 import os
-from typing import Any, Dict
+import asyncio
+from datetime import datetime
 
 from fastapi import FastAPI
+from sqlalchemy import select, text
 
-from infra.api.routes.constitutional import router as constitutional_router
+from infra.api.endpoints.execution import router as execution_router
+from infra.api.endpoints.approvals import router as approvals_router
 
-
-def _is_devlike() -> bool:
-    return os.getenv("METAOS_ENV", "dev").lower() in ("dev", "local")
-
-
-app = FastAPI(title="proto-v2-engine", version="v0.6")
-
-
-@app.get("/health")
-def health() -> Dict[str, Any]:
-    return {"ok": True, "service": "proto-v2-engine", "version": "v0.6"}
+from infra.api.deps import AsyncSessionLocal
+from infra.api.endpoints.models.approval import Approval
+from infra.api.endpoints.models.execution_run import ExecutionRun
 
 
-# Always-on (prod 포함) — constitutional boundary
-app.include_router(constitutional_router)
+def _utcnow_naive() -> datetime:
+    # SQLite: naive utc 통일
+    return datetime.utcnow()
 
-# DEV/LOCAL only — debug surface (lazy import to avoid prod import)
-if _is_devlike():
-    try:
-        from infra.api.routes.constitutional_debug import router as constitutional_debug_router  # noqa: F401
-        app.include_router(constitutional_debug_router)
-    except Exception:
-        # Fail-closed: debug router missing or broken should not break main app
-        pass
+
+# -----------------------------
+# FAIL-CLOSED DB PRECHECK (LOCK)
+# -----------------------------
+async def _assert_db_provenance_and_schema() -> None:
+    """
+    앱이 실제로 바라보는 SQLite 파일과 스키마(필수 테이블)를 startup 시점에 강제 검증.
+    - DB 경로/파일이 꼬이면 즉시 터뜨림 (fail-closed)
+    - execution_runs 테이블이 없으면 즉시 터뜨림
+    """
+    async with AsyncSessionLocal() as session:
+        # 1) SQLite 파일 경로 확인
+        res = await session.execute(text("PRAGMA database_list;"))
+        rows = res.fetchall()
+        main_db = next((r for r in rows if r[1] == "main"), None)
+
+        if not main_db:
+            raise RuntimeError("DB_PROVENANCE_FAIL: main database not found (PRAGMA database_list)")
+
+        db_path = main_db[2]
+        abs_path = os.path.abspath(db_path)
+        print(f"[DB_PROVENANCE] main.db = {abs_path}")
+
+        # 2) 필수 테이블 존재 확인
+        #    (SQLite는 sqlite_master로 테이블 존재를 확인하는 게 가장 확실)
+        required_tables = ["execution_runs", "approvals", "approval_decision_events"]
+        for t in required_tables:
+            r = await session.execute(
+                text(
+                    """
+                    SELECT name FROM sqlite_master
+                    WHERE type='table' AND name=:t
+                    """
+                ),
+                {"t": t},
+            )
+            if r.scalar() is None:
+                raise RuntimeError(f"DB_SCHEMA_FAIL: required table '{t}' not found in {abs_path}")
+
+
+async def _approval_expirer_loop() -> None:
+    enabled = os.getenv("APPROVAL_EXPIRER_ENABLED", "0") == "1"
+    interval = int(os.getenv("APPROVAL_EXPIRER_INTERVAL_SECONDS", "5"))
+
+    if not enabled:
+        print("[approval-expirer] disabled (set APPROVAL_EXPIRER_ENABLED=1)")
+        return
+
+    print(f"[approval-expirer] enabled interval={interval}s")
+
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                now = _utcnow_naive()
+
+                res = await session.execute(
+                    select(Approval).where(
+                        Approval.status == "pending",
+                        Approval.expires_at.is_not(None),
+                        Approval.expires_at <= now,
+                    )
+                )
+                approvals = res.scalars().all()
+
+                if approvals:
+                    for appr in approvals:
+                        appr.status = "expired"
+                        appr.resolved_at = now
+
+                        run = await session.get(ExecutionRun, appr.execution_run_id)
+                        if run is not None and run.status == "BLOCKED":
+                            run.blocked_reason = "approval_expired"
+
+                    await session.commit()
+                    print(f"[approval-expirer] expired={len(approvals)}")
+
+        except Exception as e:
+            # expirer 오류로 서버 죽지 않게
+            print("[approval-expirer] ERROR:", repr(e))
+
+        await asyncio.sleep(interval)
+
+
+app = FastAPI(title="Proto V2 Engine API")
+
+app.include_router(execution_router, prefix="/api/v1/execution")
+app.include_router(approvals_router)
+
+
+@app.on_event("startup")
+async def _startup():
+    # 1) FAIL-CLOSED: DB가 올바른 파일/스키마인지 먼저 검증 (여기서 걸리면 서버 기동 실패)
+    await _assert_db_provenance_and_schema()
+
+    # 2) 그 다음에 background task 시작 (스키마 검증 이후에만)
+    asyncio.create_task(_approval_expirer_loop())

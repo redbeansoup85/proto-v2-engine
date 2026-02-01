@@ -1,0 +1,108 @@
+name: Design Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  pr-body-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce PR body includes DESIGN_ARTIFACT and STAGE
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          if [[ ! "$BODY" =~ "DESIGN_ARTIFACT:" ]]; then
+            echo "Fail-Closed: PR body missing DESIGN_ARTIFACT:" >&2
+            exit 1
+          fi
+          if [[ ! "$BODY" =~ "STAGE:" ]]; then
+            echo "Fail-Closed: PR body missing STAGE:" >&2
+            exit 1
+          fi
+
+  registry-hash-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Patch registry hashes (write) then fail if diff exists
+        run: |
+          python tools/patch_registry_hashes.py Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl --base Judgment_Data --write
+          if ! git diff --quiet -- Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl; then
+            echo "Fail-Closed: registry hashes were outdated. Commit the patched files." >&2
+            git diff -- Judgment_Data/registry/schema_registry.jsonl Judgment_Data/registry/artifacts_registry.jsonl || true
+            exit 1
+          fi
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest alembic aiosqlite sqlalchemy pydantic fastapi asgi-lifespan pytest-asyncio anyio httpx
+      - run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+          DB="$PWD/infra/api/test.db"
+          rm -f "$DB"
+          sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
+          export DATABASE_URL="sqlite+aiosqlite:///$DB"
+
+          python -m py_compile infra/api/alembic/env.py
+          python -m alembic -c infra/api/alembic.ini -q upgrade head
+
+          pytest -q
+  phase1-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pytest alembic aiosqlite sqlalchemy pydantic fastapi asgi-lifespan pytest-asyncio anyio httpx
+
+          pip install pytest alembic aiosqlite sqlalchemy pydantic fastapi asgi-lifespan pytest-asyncio anyio httpx
+
+      - name: Run Phase-1 LOCK verify
+        run: |
+          chmod +x scripts/lock/phase1_verify.sh
+          ./scripts/lock/phase1_verify.sh
+
+  phase2-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pytest alembic aiosqlite sqlalchemy pydantic fastapi asgi-lifespan pytest-asyncio anyio httpx
+
+          pip install pytest alembic aiosqlite sqlalchemy pydantic fastapi asgi-lifespan pytest-asyncio anyio httpx
+
+      - name: Run Phase-2 verify
+        run: |
+          chmod +x scripts/lock/phase2_verify.sh
+          ./scripts/lock/phase2_verify.sh

@@ -1,0 +1,38 @@
+{
+  "schema_id": "JOS-JUDGMENT-COMMON-v1.0",
+  "description": "Judgment OS Common Event Schema (Phase-1 LOCK)",
+  "version": "1.0",
+  "event_type": [
+    "OBSERVATION",
+    "EXECUTION_REQUESTED",
+    "EXECUTION_AUTHORIZED",
+    "EXECUTION_BLOCKED",
+    "EXECUTION_FILLED",
+    "INVALIDATION_TRIGGERED",
+    "HUMAN_OVERRIDE_APPLIED",
+    "OUTCOME_RECORDED",
+    "AUDIT_LOGGED"
+  ],
+  "required_fields": [
+    "event_id",
+    "event_type",
+    "system_id",
+    "domain",
+    "asset_or_subject_id",
+    "chain_snapshot_id",
+    "sequence_no",
+    "payload_hash",
+    "payload",
+    "occurred_at_utc",
+    "produced_at_utc",
+    "artifact_refs",
+    "schema_id",
+    "schema_hash"
+  ],
+  "constraints": {
+    "float_forbidden": true,
+    "canonical_json": true,
+    "event_id_deterministic": true,
+    "occurred_at_excluded_from_event_id": true
+  }
+}

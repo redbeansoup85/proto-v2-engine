@@ -73,12 +73,35 @@ jobs:
           fi
 
       - name: Install dependencies
+        shell: bash
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
+
+          # Install project deps (if packaging exists)
+          pip install -e . || true
+
+          # Install requirements (if present)
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt || true
+          fi
+
+          # FAIL-CLOSED: required by tests/conftest.py (alembic import) + sqlite async driver
+          pip install alembic aiosqlite sqlalchemy pytest asgi-lifespan pytest-asyncio anyio httpx
 
       - name: Run tests
         run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+          DB="$PWD/infra/api/test.db"
+          rm -f "$DB"
+          sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
+
+          export DATABASE_URL="sqlite+aiosqlite:///$DB"
+
+          python -m py_compile infra/api/alembic/env.py
+          python -m alembic -c infra/api/alembic.ini -q upgrade head
+
           pytest -q
