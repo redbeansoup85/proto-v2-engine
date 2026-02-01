@@ -87,7 +87,7 @@ jobs:
           fi
 
           # FAIL-CLOSED: required by tests/conftest.py (alembic import) + sqlite async driver
-          pip install alembic aiosqlite sqlalchemy pytest
+          pip install alembic aiosqlite sqlalchemy pytest asgi-lifespan pytest-asyncio anyio httpx
 
       - name: Run tests
         run: |
