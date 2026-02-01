@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 import asyncio
 from datetime import datetime
 
@@ -100,13 +101,21 @@ async def _approval_expirer_loop() -> None:
         await asyncio.sleep(interval)
 
 
-app = FastAPI(title="Proto V2 Engine API")
+
+@asynccontextmanager
+async def lifespan(app):
+    await _startup()
+    try:
+        yield
+    finally:
+        pass
+app = FastAPI(title="Proto V2 Engine API", lifespan=lifespan)
+
 
 app.include_router(execution_router, prefix="/api/v1/execution")
 app.include_router(approvals_router)
 
 
-@app.on_event("startup")
 async def _startup():
     # 1) FAIL-CLOSED: DB가 올바른 파일/스키마인지 먼저 검증 (여기서 걸리면 서버 기동 실패)
     await _assert_db_provenance_and_schema()
