@@ -24,7 +24,12 @@ target_metadata = Base.metadata
 
 
 def _get_db_url() -> str:
-    # Prefer env var for test/prod isolation.
+    # FAIL-CLOSED: migrations require explicit DATABASE_URL.
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("[FAIL-CLOSED] DATABASE_URL is required for alembic migrations")
+    return url
+
     url = os.environ.get("DATABASE_URL")
     if url:
         return url
