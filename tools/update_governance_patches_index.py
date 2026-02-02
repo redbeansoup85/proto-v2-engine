@@ -171,6 +171,11 @@ def update_readme(dry_run: bool) -> None:
         print(new_txt)
         return
 
+        old_txt = README_PATH.read_text(encoding="utf-8")
+    if new_txt == old_txt:
+        print("[OK] README patch records table already up to date")
+        return
+
     README_PATH.write_text(new_txt, encoding="utf-8")
     print("[OK] README patch records table updated")
 
