@@ -41,6 +41,8 @@ Each patch must include references:
 
 ## Patch Records
 
+> **Policy (Fail-Closed):** Do not edit the Patch Records table manually. Update it only via `tools/update_governance_patches_index.py`.
+
 <!-- PATCH_RECORDS_BEGIN -->
 
 | Date (TZ) | Patch | Scope | Change Type | Notes |
