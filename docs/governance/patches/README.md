@@ -41,10 +41,13 @@ Each patch must include references:
 
 ## Patch Records
 
+<!-- PATCH_RECORDS_BEGIN -->
+
 | Date (TZ) | Patch | Scope | Change Type | Notes |
 |---|---|---|---|---|
-| 2026-02-02 (Australia/Sydney) | `PATCH-20260202-FASTAPI-LIFESPAN.md` | runtime lifecycle | A-MINOR | FastAPI lifespan migration patch record (LOCKDOC). |
+| 2026-02-02 (Australia/Sydney) | `PATCH-20260202-FASTAPI-LIFESPAN.md` | Runtime lifecycle / framework deprecation hardening | A-PATCH | — |
 
+<!-- PATCH_RECORDS_END -->
 ---
 
 ## Quick checks
