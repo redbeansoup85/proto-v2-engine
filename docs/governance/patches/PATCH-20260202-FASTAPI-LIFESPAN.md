@@ -2,35 +2,44 @@
 
 ## 1) Metadata (Immutable)
 
-    DOCUMENT_ID: LOCKDOC-PATCH-FASTAPI-LIFESPAN-v1.0
-    SYSTEM: Proto Meta Engine v2 / proto-v2-engine
-    SCOPE: Runtime lifecycle / framework deprecation hardening
-    STATUS: LOCKED
-    MUTABILITY: FORBIDDEN
-    TIMEZONE: Australia/Sydney
-    EFFECTIVE_DATE: 2026-02-02
-    CHANGE_TYPE: A-PATCH
-    RISK: low
-    BEHAVIOR_CHANGE: none (expected)
+```yaml
+DOCUMENT_ID: LOCKDOC-PATCH-FASTAPI-LIFESPAN-v1.0
+SYSTEM: Proto Meta Engine v2 / proto-v2-engine
+SCOPE: Runtime lifecycle / framework deprecation hardening
+STATUS: LOCKED
+MUTABILITY: FORBIDDEN
+TIMEZONE: Australia/Sydney
+EFFECTIVE_DATE: 2026-02-02
+CHANGE_TYPE: A-PATCH
+RISK: low
+BEHAVIOR_CHANGE: none (expected)2) Patch Summary
 
-## 2) Summary
+Change: Replace deprecated FastAPI startup/shutdown hooks with lifespan handlers.
 
-- Change: Replace deprecated FastAPI startup/shutdown hooks with lifespan handlers.
-- Scope: Runtime lifecycle only.
-- Behavior change: none expected (no API / DB semantics change).
+Scope: Runtime lifecycle only.
 
-## 3) Verification
+Behavior change: none expected (no API/DB semantics change).
 
-- CI: proto-v2-engine-ci (main push) PASS
-  - CI Run: 21569973947
+3) Verification
 
-- Local:
-  - ./scripts/lock/phase1_verify.sh : PASS
-  - ./scripts/lock/phase2_verify.sh : PASS
+CI: proto-v2-engine-ci (main push) PASS
 
-## 4) References
+CI Run: 21569973947
 
-- PR: #21
-- Commit: bd636de
-- Tag: LOCKDOC-PATCH-20260202-FASTAPI-LIFESPAN
-- CI Run: 21569973947
+Local:
+
+./scripts/lock/phase1_verify.sh : PASS
+
+./scripts/lock/phase2_verify.sh : PASS
+
+4) References
+
+PR: #21
+
+Commit: bd636de
+
+Tag: LOCKDOC-PATCH-20260202-FASTAPI-LIFESPAN
+
+CI Run: 21569973947
+
+```
