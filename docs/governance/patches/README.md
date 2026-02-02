@@ -45,7 +45,7 @@ Each patch must include references:
 
 | Date (TZ) | Patch | Scope | Change Type | Notes |
 |---|---|---|---|---|
-| 2026-02-02 (Australia/Sydney) | `PATCH-20260202-FASTAPI-LIFESPAN.md` | Runtime lifecycle / framework deprecation hardening | A-PATCH | — |
+| 2026-02-02 (Australia/Sydney) | `PATCH-20260202-FASTAPI-LIFESPAN.md` | Runtime lifecycle / framework deprecation hardening | A-MINOR | — |
 
 <!-- PATCH_RECORDS_END -->
 ---
