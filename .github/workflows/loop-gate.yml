@@ -86,7 +86,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          body="$(jq -r .pull_request.body < "$GITHUB_EVENT_PATH")"
+
+          body="$(jq -r '.pull_request.body // empty' < "$GITHUB_EVENT_PATH")"
+          if [ -z "$body" ]; then
+            num="$(jq -r '.pull_request.number // empty' < "$GITHUB_EVENT_PATH")"
+            [ -n "$num" ] || { echo "Fail-Closed: cannot read PR number from event payload"; exit 1; }
+
+            body="$(curl -sS \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${num}" \
+              | jq -r '.body // empty')"
+          fi
+
+          echo "PR_BODY_LEN=${#body}"
+          body="$(jq -r '.pull_request.body // empty' < "$GITHUB_EVENT_PATH")"
+          if [ -z "$body" ]; then
+            num="$(jq -r '.pull_request.number // empty' < "$GITHUB_EVENT_PATH")"
+            [ -n "$num" ] || { echo "Fail-Closed: cannot read PR number from event payload"; exit 1; }
+
+            body="$(curl -sS \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${num}" \
+              | jq -r '.body // empty')"
+          fi
+
+          echo "PR_BODY_LEN=${#body}"
           for k in DESIGN_ARTIFACT STAGE WHY_NOW VERIFY BREAK_RISK; do
             echo "$body" | grep -q "$k:" || { echo "Missing $k in PR body"; exit 1; }
           done
