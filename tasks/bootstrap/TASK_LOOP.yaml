@@ -8,3 +8,4 @@ EXECUTION:
 NEXT_ACTION:
   ON_SUCCESS: allow future tasks to be added incrementally
   ON_FAILURE: block merge
+RESULT: OPEN
