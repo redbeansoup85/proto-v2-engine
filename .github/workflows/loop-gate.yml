@@ -28,7 +28,7 @@ jobs:
       - name: Validate TASK_LOOP fields
         run: |
           for f in $(find tasks -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "tasks/_template/*"); do
-            for k in INTENT EXPECTED_OUTCOME EXECUTION NEXT_ACTION; do
+            for k in INTENT EXPECTED_OUTCOME EXECUTION NEXT_ACTION RESULT; do
               grep -q "^$k:" "$f" || { echo "Missing $k in $f"; exit 1; }
             done
           done
