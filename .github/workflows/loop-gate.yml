@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
 
-          COUNT="$(find "$ROOT" -mindepth 2 -maxdepth 2 \
+          COUNT="$(find "$ROOT" -mindepth 3 -maxdepth 3 \
             -name TASK_LOOP.yaml \
             ! -path "$ROOT/_template/*" \
             -print | wc -l | tr -d ' ')"
