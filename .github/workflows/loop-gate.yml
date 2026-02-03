@@ -24,6 +24,14 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Fail-Closed: path traversal guard (workflow_dispatch input hardening)
+          case "$ROOT" in
+            ""|"/"*|*".."* )
+              echo "Fail-Closed: invalid ROOT: $ROOT"
+              exit 1
+              ;;
+          esac
+
           if [ ! -d "$ROOT" ]; then
             echo "Fail-Closed: ROOT directory not found: $ROOT"
             exit 1
@@ -39,6 +47,12 @@ jobs:
             exit 1
           fi
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
       - name: Validate TASK_LOOP schema (YAML parse + jsonschema)
         shell: bash
         run: |
@@ -48,7 +62,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "PyYAML>=6.0" "jsonschema>=4.20"
 
-          python scripts/validate_task_loop.py "$ROOT"
+          python scripts/validate_task_loop.py "$ROOT" --schema schemas/task_loop.schema.json
 
       - name: Closed Loop KPI Summary
         shell: bash

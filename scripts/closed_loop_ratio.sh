@@ -13,10 +13,7 @@ closed=0
 
 while IFS= read -r f; do
   total=$((total + 1))
-
-  # Closed definition:
-  # - RESULT: PASS (current)
-  # - RESULT: DONE (legacy fallback)
+  # closed: PASS (current) or DONE (legacy)
   if grep -qE '^RESULT:[[:space:]]*(PASS|DONE)([[:space:]]*(#.*)?)?$' "$f"; then
     closed=$((closed + 1))
   fi
