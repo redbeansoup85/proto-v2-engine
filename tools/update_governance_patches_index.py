@@ -150,6 +150,11 @@ def render_table(rows: List[PatchRow]) -> str:
 
 
 def update_readme(dry_run: bool) -> None:
+    # Fail-Closed: read current README text once, then compare.
+    if not README_PATH.exists():
+        raise SystemExit(f"[FAIL-CLOSED] missing README: {README_PATH}")
+    old_txt = README_PATH.read_text(encoding="utf-8")
+
     txt = read_text(README_PATH)
 
     if ANCHOR_BEGIN not in txt or ANCHOR_END not in txt:
