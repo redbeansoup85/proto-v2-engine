@@ -1,0 +1,13 @@
+STATUS: OPEN
+CREATED_AT_UTC: "2026-02-03T00:00:00Z"
+
+TASK_ID: "TASK-<DOMAIN>-<NAME>-v1"
+OWNER: "unassigned"
+INTENT: "Describe the loop intent"
+INPUTS:
+  - "input-1"
+OUTPUTS:
+  - "output-1"
+CHECKS:
+  - "check-1"
+NOTES: ""

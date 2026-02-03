@@ -14,7 +14,7 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     env:
-      ROOT: ${{ github.event_name == 'workflow_dispatch' && inputs.root_dir || 'tasks' }}
+      ROOT: ${{ (github.event_name == 'workflow_dispatch' && inputs.root_dir) || 'tasks' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -24,12 +24,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Fail-Closed: path traversal guard (workflow_dispatch input hardening)
+          case "$ROOT" in
+            ""|"/"*|*".."* )
+              echo "Fail-Closed: invalid ROOT: $ROOT"
+              exit 1
+              ;;
+          esac
+
           if [ ! -d "$ROOT" ]; then
             echo "Fail-Closed: ROOT directory not found: $ROOT"
             exit 1
           fi
 
-          COUNT="$(find "$ROOT" -mindepth 2 -maxdepth 2 \
+          COUNT="$(find "$ROOT" -mindepth 3 -maxdepth 3 \
             -name TASK_LOOP.yaml \
             ! -path "$ROOT/_template/*" \
             -print | wc -l | tr -d ' ')"
@@ -39,70 +47,38 @@ jobs:
             exit 1
           fi
 
-      - name: Validate TASK_LOOP fields
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Validate TASK_LOOP schema (YAML parse + jsonschema)
         shell: bash
         run: |
           set -euo pipefail
 
-          while IFS= read -r f; do
-            for k in INTENT EXPECTED_OUTCOME EXECUTION NEXT_ACTION RESULT; do
-              grep -q "^$k:" "$f" || { echo "Missing $k in $f"; exit 1; }
-            done
+          python -V
+          python -m pip install --upgrade pip
+          python -m pip install "PyYAML>=6.0" "jsonschema>=4.20"
 
-            # RESULT enum gate (scalar)
-            grep -Eq '^RESULT:\s*(OPEN|CLOSED|BLOCKED|SKIPPED)\s*$' "$f" || {
-              echo "Invalid RESULT in $f (allowed: OPEN|CLOSED|BLOCKED|SKIPPED)"
-              exit 1
-            }
-
-            # If RESULT is CLOSED, VERDICT.yaml must exist and include required fields
-            if grep -Eq '^RESULT:\s*CLOSED\s*$' "$f"; then
-              vdir="$(dirname "$f")"
-              vfile="$vdir/VERDICT.yaml"
-
-              if [ ! -f "$vfile" ]; then
-                echo "Fail-Closed: RESULT=CLOSED but missing VERDICT.yaml in $vdir"
-                exit 1
-              fi
-
-              # required keys exist
-              for k in is_closed verifier verified_at_utc evidence; do
-                grep -q "^$k:" "$vfile" || {
-                  echo "Fail-Closed: VERDICT.yaml missing $k in $vdir"
-                  exit 1
-                }
-              done
-
-              # semantic checks
-              grep -Eq '^is_closed:\s*true\s*$' "$vfile" || {
-                echo "Fail-Closed: VERDICT.yaml is_closed must be true in $vdir"
-                exit 1
-              }
-
-              # evidence must have at least one item with allowed type
-              grep -Eq '^[[:space:]]*-[[:space:]]+type:[[:space:]]*(log|test|review)[[:space:]]*$' "$vfile" || {
-                echo "Fail-Closed: VERDICT.yaml evidence item missing/invalid type in $vdir"
-                exit 1
-              }
-
-              # and a non-empty ref field somewhere
-              grep -Eq '^[[:space:]]+ref:[[:space:]]*[^[:space:]].*$' "$vfile" || {
-                echo "Fail-Closed: VERDICT.yaml evidence item missing ref in $vdir"
-                exit 1
-              }
-            fi
-          done < <(find "$ROOT" -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "$ROOT/_template/*" -print)
+          python scripts/validate_task_loop.py "$ROOT" --schema schemas/task_loop.schema.json
 
       - name: Closed Loop KPI Summary
         shell: bash
         run: |
           set -euo pipefail
-          echo "## Closed Loop KPI" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ROOT=$ROOT" >> "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo "## Closed Loop KPI"
+            echo ""
+            echo "- ROOT=$ROOT"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
           if [ -x scripts/closed_loop_ratio.sh ]; then
-            ./scripts/closed_loop_ratio.sh "$ROOT" | sed "s/^/- /" >> "$GITHUB_STEP_SUMMARY"
+            ./scripts/closed_loop_ratio.sh "$ROOT" | sed 's/^/- /' | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "- SKIP: scripts/closed_loop_ratio.sh not found" >> "$GITHUB_STEP_SUMMARY"
+            echo "- SKIP: scripts/closed_loop_ratio.sh not found" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Enforce PR_REQUEST fields
@@ -114,3 +90,5 @@ jobs:
           for k in DESIGN_ARTIFACT STAGE WHY_NOW VERIFY BREAK_RISK; do
             echo "$body" | grep -q "$k:" || { echo "Missing $k in PR body"; exit 1; }
           done
+
+# noop: trigger Design Gate
