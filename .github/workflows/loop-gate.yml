@@ -54,6 +54,43 @@ jobs:
               echo "Invalid RESULT in $f (allowed: OPEN|CLOSED|BLOCKED|SKIPPED)"
               exit 1
             }
+
+            # If RESULT is CLOSED, VERDICT.yaml must exist and include required fields
+            if grep -Eq '^RESULT:\s*CLOSED\s*$' "$f"; then
+              vdir="$(dirname "$f")"
+              vfile="$vdir/VERDICT.yaml"
+
+              if [ ! -f "$vfile" ]; then
+                echo "Fail-Closed: RESULT=CLOSED but missing VERDICT.yaml in $vdir"
+                exit 1
+              fi
+
+              # required keys exist
+              for k in is_closed verifier verified_at_utc evidence; do
+                grep -q "^$k:" "$vfile" || {
+                  echo "Fail-Closed: VERDICT.yaml missing $k in $vdir"
+                  exit 1
+                }
+              done
+
+              # semantic checks
+              grep -Eq '^is_closed:\s*true\s*$' "$vfile" || {
+                echo "Fail-Closed: VERDICT.yaml is_closed must be true in $vdir"
+                exit 1
+              }
+
+              # evidence must have at least one item with allowed type
+              grep -Eq '^[[:space:]]*-[[:space:]]+type:[[:space:]]*(log|test|review)[[:space:]]*$' "$vfile" || {
+                echo "Fail-Closed: VERDICT.yaml evidence item missing/invalid type in $vdir"
+                exit 1
+              }
+
+              # and a non-empty ref field somewhere
+              grep -Eq '^[[:space:]]+ref:[[:space:]]*[^[:space:]].*$' "$vfile" || {
+                echo "Fail-Closed: VERDICT.yaml evidence item missing ref in $vdir"
+                exit 1
+              }
+            fi
           done < <(find "$ROOT" -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "$ROOT/_template/*" -print)
 
       - name: Closed Loop KPI Summary
