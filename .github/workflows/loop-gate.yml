@@ -91,3 +91,5 @@ jobs:
           for k in DESIGN_ARTIFACT STAGE WHY_NOW VERIFY BREAK_RISK; do
             echo "$body" | grep -q "$k:" || { echo "Missing $k in PR body"; exit 1; }
           done
+
+# noop: trigger Design Gate
