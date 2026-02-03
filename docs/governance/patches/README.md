@@ -33,15 +33,33 @@ Each patch must include references:
 - CI run id(s)
 
 ### 4) Classification token policy (repo gate)
-- Any change under `docs/governance/**` requires:
+- Any change under `docs/governance/**` **REQUIRES**:
   - `A-MINOR:` or `A-MAJOR:` token (per CI gate)
-- `A-PATCH:` is not permitted for governance-doc changes.
+- `A-PATCH:` is **NOT permitted** for governance documentation.
+
+Violation results in **PR rejection**.
+
+### 5) Drift gate (CI) — REQUIRED
+Any PR that changes `docs/governance/patches/**` **MUST** keep
+`docs/governance/patches/README.md` consistent with
+`tools/update_governance_patches_index.py`.
+
+CI behavior:
+- The expected Patch Records table is regenerated automatically
+- If a diff is detected, the build **FAILS (fail-closed)**
+
+This guarantees:
+- No silent governance drift
+- No human-maintained indexes
+- Deterministic, reproducible patch history
 
 ---
 
 ## Patch Records
 
-> **Policy (Fail-Closed):** Do not edit the Patch Records table manually. Update it only via `tools/update_governance_patches_index.py`.
+> **Policy (Fail-Closed):**  
+> The Patch Records table below is **machine-maintained**.  
+> Human edits are forbidden. Update only via `./tools/update_governance_patches_index.py`.
 
 <!-- PATCH_RECORDS_BEGIN -->
 
@@ -50,12 +68,15 @@ Each patch must include references:
 | 2026-02-02 (Australia/Sydney) | `PATCH-20260202-FASTAPI-LIFESPAN.md` | Runtime lifecycle / framework deprecation hardening | A-MINOR | — |
 
 <!-- PATCH_RECORDS_END -->
+
 ---
 
-## Quick checks
+## Quick checks (local)
 
-### Markdown fence balance (local)
-Use this to detect unmatched code fences:
+### Markdown fence balance
+- Ensure the number of triple-backtick fences is even
 
-- Count triple fences should be even.
+### Index regeneration (manual)
+```bash
+./tools/update_governance_patches_index.py
 
