@@ -46,19 +46,31 @@ jobs:
 
           find "$ROOT" -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "$ROOT/_template/*" -print \
           | while IFS= read -r f; do
-              # required top-level keys (loop-gate enforced contract)
+              echo "Validating: $f"
+
+              # required top-level keys
               for k in CREATED_AT_UTC INTENT EXPECTED_OUTCOME EXECUTION NEXT_ACTION RESULT; do
                 grep -q "^$k:" "$f" || { echo "Missing $k in $f"; exit 1; }
               done
 
-              # RESULT enum gate (align with schema: OPEN/PASS/FAIL/BLOCKED)
-              grep -Eq '^RESULT:\s*(OPEN|PASS|FAIL|BLOCKED)\s*$' "$f" || {
+              # required nested keys (schema minimum)
+              grep -qE "^[[:space:]]*SUCCESS:[[:space:]]*.+$" "$f" || { echo "Missing EXPECTED_OUTCOME.SUCCESS in $f"; exit 1; }
+              grep -qE "^[[:space:]]*FAILURE:[[:space:]]*.+$" "$f" || { echo "Missing EXPECTED_OUTCOME.FAILURE in $f"; exit 1; }
+
+              grep -qE "^[[:space:]]*HOW:[[:space:]]*.+$" "$f" || { echo "Missing EXECUTION.HOW in $f"; exit 1; }
+              grep -qE "^[[:space:]]*WHEN:[[:space:]]*.+$" "$f" || { echo "Missing EXECUTION.WHEN in $f"; exit 1; }
+
+              grep -qE "^[[:space:]]*ON_SUCCESS:[[:space:]]*.+$" "$f" || { echo "Missing NEXT_ACTION.ON_SUCCESS in $f"; exit 1; }
+              grep -qE "^[[:space:]]*ON_FAILURE:[[:space:]]*.+$" "$f" || { echo "Missing NEXT_ACTION.ON_FAILURE in $f"; exit 1; }
+
+              # RESULT enum gate (OPEN/PASS/FAIL/BLOCKED)
+              grep -Eq "^RESULT:[[:space:]]*(OPEN|PASS|FAIL|BLOCKED)[[:space:]]*(#.*)?$" "$f" || {
                 echo "Invalid RESULT in $f (allowed: OPEN|PASS|FAIL|BLOCKED)"
                 exit 1
               }
 
               # CREATED_AT_UTC ISO-8601 UTC(Z) gate (allow quoted/unquoted)
-              grep -Eq '^CREATED_AT_UTC:\s*"?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"?\s*$' "$f" || {
+              grep -Eq "^CREATED_AT_UTC:[[:space:]]*\"?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\"?[[:space:]]*(#.*)?$" "$f" || {
                 echo "Invalid CREATED_AT_UTC in $f (required: YYYY-MM-DDTHH:MM:SSZ)"
                 exit 1
               }

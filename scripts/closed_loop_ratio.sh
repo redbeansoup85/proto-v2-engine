@@ -11,17 +11,13 @@ fi
 total=0
 closed=0
 
-# Find TASK_LOOP.yaml under ROOT/*/TASK_LOOP.yaml (exclude ROOT/_template)
 while IFS= read -r f; do
-  # find가 빈 결과면 여기로 안 들어옴
-  [ -n "$f" ] || continue
-
   total=$((total + 1))
 
-  # Closed definition (align with schema + loop-gate):
-  # - OPEN  -> not closed
-  # - PASS/FAIL/BLOCKED -> closed
-  if grep -qE '^RESULT:[[:space:]]*(PASS|FAIL|BLOCKED)([[:space:]]*(#.*)?)?$' "$f"; then
+  # Closed definition:
+  # - RESULT: PASS (current)
+  # - RESULT: DONE (legacy fallback)
+  if grep -qE '^RESULT:[[:space:]]*(PASS|DONE)([[:space:]]*(#.*)?)?$' "$f"; then
     closed=$((closed + 1))
   fi
 done <<EOFIND
