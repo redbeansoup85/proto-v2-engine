@@ -4,42 +4,39 @@ set -euo pipefail
 ROOT="${1:-tasks}"
 
 if [ ! -d "$ROOT" ]; then
-  echo "error: missing dir: $ROOT" >&2
+  echo "ERROR: directory not found: $ROOT" >&2
   exit 1
 fi
 
-# Find TASK_LOOP.yaml under tasks/*/TASK_LOOP.yaml (exclude tasks/_template)
-# bash3-safe: use find + while read, no mapfile.
-total=0
+started=0
 closed=0
 
-# shellcheck disable=SC2039
-while IFS= read -r f; do
-  total=$((total + 1))
+echo "ROOT=$ROOT"
 
-  # Closed definition: RESULT: DONE (exact match at line start)
-  if grep -qE '^RESULT:[[:space:]]*DONE([[:space:]]*(#.*)?)?$' "$f"; then
+for d in "$ROOT"/*; do
+  [ -d "$d" ] || continue
+  name="$(basename "$d")"
+  case "$name" in
+    _template|.*) continue ;;
+  esac
+
+  loop="$d/TASK_LOOP.yaml"
+  [ -f "$loop" ] || continue
+  started=$((started + 1))
+
+  # RESULT 스칼라가 CLOSED면 closed로 카운트
+  if grep -Eq '^RESULT:\s*CLOSED\s*$' "$loop"; then
     closed=$((closed + 1))
   fi
-done <<EOFIND
-$(find "$ROOT" -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "$ROOT/_template/*" 2>/dev/null || true)
-EOFIND
+done
 
-open=$((total - closed))
+echo "STARTED=$started"
+echo "CLOSED=$closed"
 
-# Avoid division by zero
-if [ "$total" -eq 0 ]; then
-  echo "tasks_total: 0"
-  echo "closed_loops: 0"
-  echo "open_loops: 0"
-  echo "closed_loop_ratio: n/a"
+if [ "$started" -eq 0 ]; then
+  echo "CLOSED_LOOP_RATIO=n/a"
   exit 0
 fi
 
-# ratio with 1 decimal using awk (portable)
-ratio="$(awk -v c="$closed" -v t="$total" 'BEGIN { printf "%.1f%%", (c/t)*100 }')"
-
-echo "tasks_total: $total"
-echo "closed_loops: $closed"
-echo "open_loops: $open"
-echo "closed_loop_ratio: $ratio"
+ratio=$(awk -v c="$closed" -v s="$started" 'BEGIN { printf "%.3f", c/s }')
+echo "CLOSED_LOOP_RATIO=$ratio"
