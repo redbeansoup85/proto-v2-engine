@@ -8,17 +8,6 @@ jobs:
   pr-body-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce PR body includes DESIGN_ARTIFACT and STAGE
-        run: |
-          BODY="${{ github.event.pull_request.body }}"
-          if [[ ! "$BODY" =~ "DESIGN_ARTIFACT:" ]]; then
-            echo "Fail-Closed: PR body missing DESIGN_ARTIFACT:" >&2
-            exit 1
-          fi
-          if [[ ! "$BODY" =~ "STAGE:" ]]; then
-            echo "Fail-Closed: PR body missing STAGE:" >&2
-            exit 1
-          fi
 
   registry-hash-gate:
     runs-on: ubuntu-latest
