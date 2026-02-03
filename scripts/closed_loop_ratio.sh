@@ -3,40 +3,40 @@ set -euo pipefail
 
 ROOT="${1:-tasks}"
 
-if [ ! -d "$ROOT" ]; then
-  echo "ERROR: directory not found: $ROOT" >&2
-  exit 1
-fi
+FILES=$(find "$ROOT" -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "$ROOT/_template/*" -print 2>/dev/null || true)
 
-started=0
+total=0
+open=0
 closed=0
+blocked=0
+skipped=0
+
+IFS='
+'
+for f in $FILES; do
+  [ -f "$f" ] || continue
+  total=$((total+1))
+
+  res="$(grep -E '^RESULT:' "$f" | head -n1 | sed -E 's/^RESULT:[[:space:]]*//; s/[[:space:]]*$//')"
+  case "$res" in
+    OPEN) open=$((open+1)) ;;
+    CLOSED) closed=$((closed+1)) ;;
+    BLOCKED) blocked=$((blocked+1)) ;;
+    SKIPPED) skipped=$((skipped+1)) ;;
+    *) open=$((open+1)) ;;
+  esac
+done
+unset IFS
+
+ratio="0.0000"
+if [ "$total" -gt 0 ]; then
+  ratio="$(awk -v c="$closed" -v t="$total" 'BEGIN { printf("%.4f", c/t) }')"
+fi
 
 echo "ROOT=$ROOT"
-
-for d in "$ROOT"/*; do
-  [ -d "$d" ] || continue
-  name="$(basename "$d")"
-  case "$name" in
-    _template|.*) continue ;;
-  esac
-
-  loop="$d/TASK_LOOP.yaml"
-  [ -f "$loop" ] || continue
-  started=$((started + 1))
-
-  # RESULT 스칼라가 CLOSED면 closed로 카운트
-  if grep -Eq '^RESULT:\s*CLOSED\s*$' "$loop"; then
-    closed=$((closed + 1))
-  fi
-done
-
-echo "STARTED=$started"
+echo "TOTAL=$total"
+echo "OPEN=$open"
 echo "CLOSED=$closed"
-
-if [ "$started" -eq 0 ]; then
-  echo "CLOSED_LOOP_RATIO=n/a"
-  exit 0
-fi
-
-ratio=$(awk -v c="$closed" -v s="$started" 'BEGIN { printf "%.3f", c/s }')
+echo "BLOCKED=$blocked"
+echo "SKIPPED=$skipped"
 echo "CLOSED_LOOP_RATIO=$ratio"
