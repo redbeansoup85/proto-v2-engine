@@ -7,15 +7,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Enforce TASK_LOOP presence
+      - name: Enforce TASK_LOOP under tasks (exclude _template)
         run: |
-          if ! git ls-files | grep -q "TASK_LOOP.yaml"; then
-            echo "TASK_LOOP.yaml missing"; exit 1;
+          if [ ! -d tasks ]; then
+            echo "No tasks/ directory"; exit 1;
+          fi
+
+          COUNT=$(find tasks -mindepth 2 -maxdepth 2 \
+            -name TASK_LOOP.yaml \
+            ! -path "tasks/_template/*" | wc -l | tr -d ' ')
+
+          if [ "$COUNT" -lt 1 ]; then
+            echo "Fail-Closed: no TASK_LOOP.yaml found under tasks/ (excluding _template)"; 
+            exit 1;
           fi
 
       - name: Validate TASK_LOOP fields
         run: |
-          for f in $(git ls-files | grep TASK_LOOP.yaml); do
+          for f in $(find tasks -mindepth 2 -maxdepth 2 -name TASK_LOOP.yaml ! -path "tasks/_template/*"); do
             for k in INTENT EXPECTED_OUTCOME EXECUTION NEXT_ACTION; do
               grep -q "^$k:" "$f" || { echo "Missing $k in $f"; exit 1; }
             done
@@ -25,6 +34,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           body="$(jq -r .pull_request.body < $GITHUB_EVENT_PATH)"
-          for k in WHY_NOW VERIFY BREAK_RISK; do
-            echo "$body" | grep -q "$k:" || { echo "Missing $k"; exit 1; }
+          for k in DESIGN_ARTIFACT STAGE WHY_NOW VERIFY BREAK_RISK; do
+            echo "$body" | grep -q "$k:" || { echo "Missing $k in PR body"; exit 1; }
           done
