@@ -74,12 +74,12 @@ jobs:
             echo "## Closed Loop KPI"
             echo ""
             echo "- ROOT=$ROOT"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
           if [ -x scripts/closed_loop_ratio.sh ]; then
-            ./scripts/closed_loop_ratio.sh "$ROOT" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
+            ./scripts/closed_loop_ratio.sh "$ROOT" | sed 's/^/- /' | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "- SKIP: scripts/closed_loop_ratio.sh not found" >> "$GITHUB_STEP_SUMMARY"
+            echo "- SKIP: scripts/closed_loop_ratio.sh not found" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Enforce PR_REQUEST fields

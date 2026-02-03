@@ -8,17 +8,20 @@ if [ ! -d "$ROOT" ]; then
   exit 1
 fi
 
-# Find TASK_LOOP.yaml under tasks/*/TASK_LOOP.yaml (exclude tasks/_template)
-# bash3-safe: use find + while read, no mapfile.
 total=0
 closed=0
 
-# shellcheck disable=SC2039
+# Find TASK_LOOP.yaml under ROOT/*/TASK_LOOP.yaml (exclude ROOT/_template)
 while IFS= read -r f; do
+  # find가 빈 결과면 여기로 안 들어옴
+  [ -n "$f" ] || continue
+
   total=$((total + 1))
 
-  # Closed definition: RESULT: DONE (exact match at line start)
-  if grep -qE '^RESULT:[[:space:]]*DONE([[:space:]]*(#.*)?)?$' "$f"; then
+  # Closed definition (align with schema + loop-gate):
+  # - OPEN  -> not closed
+  # - PASS/FAIL/BLOCKED -> closed
+  if grep -qE '^RESULT:[[:space:]]*(PASS|FAIL|BLOCKED)([[:space:]]*(#.*)?)?$' "$f"; then
     closed=$((closed + 1))
   fi
 done <<EOFIND
@@ -27,7 +30,6 @@ EOFIND
 
 open=$((total - closed))
 
-# Avoid division by zero
 if [ "$total" -eq 0 ]; then
   echo "tasks_total: 0"
   echo "closed_loops: 0"
@@ -36,7 +38,6 @@ if [ "$total" -eq 0 ]; then
   exit 0
 fi
 
-# ratio with 1 decimal using awk (portable)
 ratio="$(awk -v c="$closed" -v t="$total" 'BEGIN { printf "%.1f%%", (c/t)*100 }')"
 
 echo "tasks_total: $total"
