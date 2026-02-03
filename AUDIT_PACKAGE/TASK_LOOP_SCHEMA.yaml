@@ -1,0 +1,36 @@
+type: object
+required: [INTENT, EXPECTED_OUTCOME, EXECUTION, NEXT_ACTION]
+properties:
+  INTENT:
+    type: string
+    minLength: 1
+  EXPECTED_OUTCOME:
+    type: object
+    required: [SUCCESS, FAILURE]
+    properties:
+      SUCCESS:
+        type: string
+        minLength: 1
+      FAILURE:
+        type: string
+        minLength: 1
+  EXECUTION:
+    type: object
+    required: [HOW, WHEN]
+    properties:
+      HOW:
+        type: string
+        minLength: 1
+      WHEN:
+        type: string
+        minLength: 1
+  NEXT_ACTION:
+    type: object
+    required: [ON_SUCCESS, ON_FAILURE]
+    properties:
+      ON_SUCCESS:
+        type: string
+        minLength: 1
+      ON_FAILURE:
+        type: string
+        minLength: 1

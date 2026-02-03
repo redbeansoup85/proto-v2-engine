@@ -1,0 +1,5 @@
+Human: 승인/판정 (구현 금지)
+Builder Agent: 구현 (판정 금지)
+Tester Agent: 검증 (수정 금지)
+Adversary Agent: 반례 (해결 금지)
+Scribe Agent: 기록 (판단 금지)
