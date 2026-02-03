@@ -2,9 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": true,
-  "required": ["STATUS", "CREATED_AT_UTC"],
+
+  "required": ["CREATED_AT_UTC"],
+  "anyOf": [
+    { "required": ["STATUS"] },
+    { "required": ["RESULT"] }
+  ],
+
   "properties": {
     "STATUS": {
+      "type": "string",
+      "enum": ["OPEN", "PASS", "FAIL", "BLOCKED"]
+    },
+    "RESULT": {
       "type": "string",
       "enum": ["OPEN", "PASS", "FAIL", "BLOCKED"]
     },

@@ -56,6 +56,14 @@ def validate_one(path: Path, validator: Draft202012Validator) -> FileResult:
     if not isinstance(data, dict):
         return FileResult(path, False, ("Root YAML must be a mapping/object.",))
 
+    # Backward-compat: allow RESULT as an alias of STATUS.
+    # Fail-Closed: if both exist and mismatch, error.
+    if "STATUS" not in data and "RESULT" in data:
+        data["STATUS"] = data.get("RESULT")
+
+    if "STATUS" in data and "RESULT" in data and data.get("STATUS") != data.get("RESULT"):
+        errors.append("STATUS and RESULT mismatch")
+
     for err in validator.iter_errors(data):
         loc = ".".join(str(p) for p in err.path) if err.path else "(root)"
         errors.append(f"{loc}: {err.message}")
