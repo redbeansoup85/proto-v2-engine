@@ -19,6 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fail-Closed: forbid legacy SCHEMAS/ directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "SCHEMAS" ]; then
+            echo "Fail-Closed: legacy dir 'SCHEMAS/' detected. Use 'schemas/' only." >&2
+            find SCHEMAS -maxdepth 2 -type f -print >&2 || true
+            exit 1
+          fi
       - name: Enforce TASK_LOOP under ROOT (exclude _template)
         shell: bash
         run: |
