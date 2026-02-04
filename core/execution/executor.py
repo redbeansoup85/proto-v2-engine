@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 from typing import Optional, Sequence, Any
 
@@ -35,6 +36,29 @@ class ShadowAdapterError(RuntimeError):
 
 
 _CONTRACT_DIR = Path(__file__).resolve().parents[1] / "contracts"
+_TRUE_SET = {"1", "true", "yes", "y", "on"}
+_FALSE_SET = {"0", "false", "no", "n", "off"}
+
+
+def is_shadow_only() -> bool:
+    """
+    Routing toggle point (Step 1: NO policy change).
+
+    Semantics:
+      - Default: True (shadow-only)
+      - Missing env: True
+      - Invalid/unrecognized value: True (fail-closed)
+    """
+    raw = os.getenv("SHADOW_ONLY")
+    if raw is None:
+        return True
+
+    val = raw.strip().lower()
+    if val in _TRUE_SET:
+        return True
+    if val in _FALSE_SET:
+        return False
+    return True
 
 
 def _load_schema(name: str) -> dict:
