@@ -1,0 +1,5 @@
+# Step16 enforced adapter plan (LOCK-safe)
+adapter_name: mock
+enforced: true
+side_effects_required: true
+modes: ["ok"]
