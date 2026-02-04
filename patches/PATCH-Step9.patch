@@ -1,0 +1,94 @@
+From 2c6f4429f5a6182959387fd564ce249fc01f17c9 Mon Sep 17 00:00:00 2001
+From: Seunghyun Pyo <kmidus@gmail.com>
+Date: Wed, 4 Feb 2026 20:02:28 +1100
+Subject: [PATCH] A-PATCH: add Step9 enforced adapter routing + LOCK-safe tests
+
+---
+ core/execution/enforced_adapter_step9.py      | 18 +++++++++++
+ core/execution/executor.py                    |  9 ++++++
+ tests/adapters/test_adapter_enforced_step9.py | 31 +++++++++++++++++++
+ 3 files changed, 58 insertions(+)
+ create mode 100644 core/execution/enforced_adapter_step9.py
+ create mode 100644 tests/adapters/test_adapter_enforced_step9.py
+
+diff --git a/core/execution/enforced_adapter_step9.py b/core/execution/enforced_adapter_step9.py
+new file mode 100644
+index 0000000..cc8b7e6
+--- /dev/null
++++ b/core/execution/enforced_adapter_step9.py
+@@ -0,0 +1,18 @@
++from __future__ import annotations
++from typing import Any
++
++from core.adapters.capabilities import get_adapter_capability
++from core.execution.executor import ShadowAdapterError
++from core.observer.observer_hook import emit_shadow_observation
++
++def run_enforced_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
++    cap = get_adapter_capability(adapter_name)
++    if not cap or not cap.get("side_effects", False):
++        emit_shadow_observation(
++            outcome="deny",
++            reason_code="ENFORCED_FAIL_CLOSED",
++            adapter_name=adapter_name,
++        )
++        raise ShadowAdapterError(f"adapter '{adapter_name}' call blocked (fail-closed)")
++    emit_shadow_observation(outcome="ok", reason_code="OK", adapter_name=adapter_name)
++    return {"ok": True, "adapter_name": adapter_name}
+diff --git a/core/execution/executor.py b/core/execution/executor.py
+index 839c00f..cf39f79 100644
+--- a/core/execution/executor.py
++++ b/core/execution/executor.py
+@@ -240,3 +240,12 @@ def run_execution(*, envelope: ExecutionEnvelope, port: Any, ctx: ExecutionConte
+         return port.apply(dpa_id=ctx.dpa_id, selected_option_id=ctx.selected_option_id, context=ctx.context)
+ 
+     raise ContractForbiddenActionError(f"Unknown execution action: {ctx.action}")
++
++import os
++from core.execution.enforced_adapter_step9 import run_enforced_adapter
++from core.execution.executor import run_shadow_adapter
++
++def run_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
++    if os.getenv("SHADOW_ONLY", "true").lower() != "false":
++        return run_shadow_adapter(adapter_name=adapter_name, request=request)
++    return run_enforced_adapter(adapter_name=adapter_name, request=request)
+diff --git a/tests/adapters/test_adapter_enforced_step9.py b/tests/adapters/test_adapter_enforced_step9.py
+new file mode 100644
+index 0000000..0cf09d4
+--- /dev/null
++++ b/tests/adapters/test_adapter_enforced_step9.py
+@@ -0,0 +1,31 @@
++import pytest
++from core.execution.executor import ShadowAdapterError, run_adapter
++
++_VALID_REQUEST = {
++    "meta": {"org_id": "org-1", "site_id": "site-1", "source": "unit",
++             "ts_start_iso": "2026-02-04T00:00:00Z", "ts_end_iso": "2026-02-04T00:01:00Z"},
++    "event": {"type": "TEST_EVENT", "payload": {}},
++    "signals": [],
++    "proposed_decision": None,
++    "human_decision": None,
++}
++
++def test_shadow_default(monkeypatch):
++    monkeypatch.setenv("SHADOW_ONLY", "true")
++    result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
++    assert isinstance(result, dict)
++    assert result["ok"] is True
++
++def test_enforced_fail_closed(monkeypatch):
++    monkeypatch.setenv("SHADOW_ONLY", "false")
++    with pytest.raises(ShadowAdapterError):
++        run_adapter(adapter_name="mock", request=_VALID_REQUEST)
++
++def test_enforced_allow(monkeypatch):
++    monkeypatch.setenv("SHADOW_ONLY", "false")
++    monkeypatch.setattr(
++        "core.adapters.capabilities.get_adapter_capability",
++        lambda adapter_name: {"side_effects": True, "modes": ["ok"]},
++    )
++    result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
++    assert result["ok"] is True
+-- 
+2.50.1 (Apple Git-155)
+
