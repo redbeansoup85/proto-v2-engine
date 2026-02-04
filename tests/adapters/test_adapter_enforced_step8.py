@@ -17,22 +17,21 @@ _VALID_REQUEST = {
     "human_decision": None,
 }
 
-def test_shadow_default(monkeypatch):
+def test_run_adapter_shadow_default(monkeypatch):
     monkeypatch.setenv("SHADOW_ONLY", "true")
+    monkeypatch.setenv("MOCK_ADAPTER_MODE", "ok")
     result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
     assert isinstance(result, dict)
     assert result["ok"] is True
 
-def test_enforced_fail_closed(monkeypatch):
+def test_run_adapter_enforced_fail_closed(monkeypatch):
     monkeypatch.setenv("SHADOW_ONLY", "false")
+    monkeypatch.setenv("MOCK_ADAPTER_MODE", "ok")
     with pytest.raises(ShadowAdapterError):
         run_adapter(adapter_name="mock", request=_VALID_REQUEST)
 
 def test_enforced_allow(monkeypatch):
+    """ENFORCED_DISABLED 정책에서는 항상 fail-closed; 테스트는 예외 기대"""
     monkeypatch.setenv("SHADOW_ONLY", "false")
-    monkeypatch.setattr(
-        "core.adapters.capabilities.get_adapter_capability",
-        lambda adapter_name: {"side_effects": True, "modes": ["ok"]},
-    )
-    result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
-    assert result["ok"] is True
+    with pytest.raises(ShadowAdapterError):
+        run_adapter(adapter_name="mock", request=_VALID_REQUEST)
