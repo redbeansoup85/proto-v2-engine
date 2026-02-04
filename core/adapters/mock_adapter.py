@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import time
 from dataclasses import dataclass
@@ -18,7 +20,7 @@ class MockAdapter:
     - Can simulate timeout / contract mismatch / generic error
     """
 
-    name: str = "mock_adapter"
+    name: str = "mock"
     version: str = "v1"
 
     def call(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -31,8 +33,28 @@ class MockAdapter:
         if mode == "mismatch":
             # simulate contract mismatch
             return {"unexpected_field": True}
+        if mode == "ambiguous":
+            return {
+                "ok": False,
+                "engine_output": {
+                    "meta": {"adapter": {"name": self.name, "version": self.version}},
+                    "decision": {"status": "AMBIGUOUS", "reason": "mock_ambiguous_state"},
+                    "signals": [],
+                },
+            }
         if mode == "error":
             raise AdapterError("ADAPTER_GENERIC_ERROR")
 
-        # ok
-        return {"ok": True, "echo": request, "adapter": {"name": self.name, "version": self.version}}
+        payload = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        request_hash = hashlib.sha256(payload).hexdigest()
+        return {
+            "ok": True,
+            "engine_output": {
+                "meta": {
+                    "adapter": {"name": self.name, "version": self.version},
+                    "request_hash": request_hash,
+                },
+                "decision": {"status": "ALLOW", "reason": "mock_ok"},
+                "signals": [],
+            },
+        }
