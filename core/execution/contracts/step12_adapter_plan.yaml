@@ -1,0 +1,14 @@
+# Step12 Adapter Enforcement Plan
+# LOCK-safe 계약/계획 정의
+
+version: v1
+notes:
+  - Step 12 focuses on planning for future enforced adapter extensions.
+  - This is informational only, no code execution.
+  - Must not modify existing runtime or shadow behavior.
+
+adapters:
+  - adapter_name: "mock"
+    enforcement_mode: "shadow_default"
+    side_effects_allowed: false
+    notes: "Planning/contract phase only"
