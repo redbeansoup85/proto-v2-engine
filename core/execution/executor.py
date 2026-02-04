@@ -240,3 +240,12 @@ def run_execution(*, envelope: ExecutionEnvelope, port: Any, ctx: ExecutionConte
         return port.apply(dpa_id=ctx.dpa_id, selected_option_id=ctx.selected_option_id, context=ctx.context)
 
     raise ContractForbiddenActionError(f"Unknown execution action: {ctx.action}")
+
+import os
+from core.execution.enforced_adapter_step9 import run_enforced_adapter
+from core.execution.executor import run_shadow_adapter
+
+def run_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
+    if os.getenv("SHADOW_ONLY", "true").lower() != "false":
+        return run_shadow_adapter(adapter_name=adapter_name, request=request)
+    return run_enforced_adapter(adapter_name=adapter_name, request=request)
