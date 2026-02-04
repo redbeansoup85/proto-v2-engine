@@ -27,3 +27,5 @@ It is slower than unsafe automation and faster than incident response.
 ---
 
 End of document.
+
+INTERNAL: var/ai should trigger gate
