@@ -1,0 +1,55 @@
+From a765e9a44f59d5ec1a6398db452531a3073a4ff4 Mon Sep 17 00:00:00 2001
+From: Seunghyun Pyo <kmidus@gmail.com>
+Date: Wed, 4 Feb 2026 19:52:32 +1100
+Subject: [PATCH] A-PATCH: add Step6 enforced adapter chokepoint test
+ (LOCK-safe)
+
+---
+ .../test_adapter_enforced_chokepoint_v2.py    | 35 +++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+ create mode 100644 tests/adapters/test_adapter_enforced_chokepoint_v2.py
+
+diff --git a/tests/adapters/test_adapter_enforced_chokepoint_v2.py b/tests/adapters/test_adapter_enforced_chokepoint_v2.py
+new file mode 100644
+index 0000000..759c219
+--- /dev/null
++++ b/tests/adapters/test_adapter_enforced_chokepoint_v2.py
+@@ -0,0 +1,35 @@
++from __future__ import annotations
++
++import pytest
++
++from core.execution.executor import ShadowAdapterError, run_adapter
++
++_VALID_REQUEST = {
++    "meta": {
++        "org_id": "org-1",
++        "site_id": "site-1",
++        "source": "unit",
++        "ts_start_iso": "2026-02-04T00:00:00Z",
++        "ts_end_iso": "2026-02-04T00:01:00Z",
++    },
++    "event": {
++        "type": "TEST_EVENT",
++        "payload": {},
++    },
++    "signals": [],
++    "proposed_decision": None,
++    "human_decision": None,
++}
++
++def test_run_adapter_shadow_default(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("SHADOW_ONLY", "true")
++    monkeypatch.setenv("MOCK_ADAPTER_MODE", "ok")
++    result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
++    assert isinstance(result, dict)
++    assert result["ok"] is True
++
++def test_run_adapter_enforced_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("SHADOW_ONLY", "false")
++    monkeypatch.setenv("MOCK_ADAPTER_MODE", "ok")
++    with pytest.raises(ShadowAdapterError):
++        run_adapter(adapter_name="mock", request=_VALID_REQUEST)
+-- 
+2.50.1 (Apple Git-155)
+

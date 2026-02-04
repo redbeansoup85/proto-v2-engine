@@ -1,0 +1,47 @@
+From a8bb92eb6be2a9827450bc75555d222519eb0115 Mon Sep 17 00:00:00 2001
+From: Seunghyun Pyo <kmidus@gmail.com>
+Date: Wed, 4 Feb 2026 20:04:54 +1100
+Subject: [PATCH] A-PATCH: add Step10 enforced adapter routing tests
+ (LOCK-safe)
+
+---
+ .../adapters/test_adapter_enforced_step10.py  | 27 +++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+ create mode 100644 tests/adapters/test_adapter_enforced_step10.py
+
+diff --git a/tests/adapters/test_adapter_enforced_step10.py b/tests/adapters/test_adapter_enforced_step10.py
+new file mode 100644
+index 0000000..e689028
+--- /dev/null
++++ b/tests/adapters/test_adapter_enforced_step10.py
+@@ -0,0 +1,27 @@
++import pytest
++from core.execution.executor import ShadowAdapterError, run_adapter
++
++_VALID_REQUEST = {
++    "meta": {
++        "org_id": "org-1",
++        "site_id": "site-1",
++        "source": "unit",
++        "ts_start_iso": "2026-02-04T00:00:00Z",
++        "ts_end_iso": "2026-02-04T00:01:00Z",
++    },
++    "event": {"type": "TEST_EVENT", "payload": {}},
++    "signals": [],
++    "proposed_decision": None,
++    "human_decision": None,
++}
++
++def test_shadow_default(monkeypatch):
++    monkeypatch.setenv("SHADOW_ONLY", "true")
++    result = run_adapter(adapter_name="mock", request=_VALID_REQUEST)
++    assert isinstance(result, dict)
++    assert result["ok"] is True
++
++def test_enforced_fail_closed(monkeypatch):
++    monkeypatch.setenv("SHADOW_ONLY", "false")
++    with pytest.raises(ShadowAdapterError):
++        run_adapter(adapter_name="mock", request=_VALID_REQUEST)
+-- 
+2.50.1 (Apple Git-155)
+

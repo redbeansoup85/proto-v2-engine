@@ -1,0 +1,53 @@
+From 367d56307b2ae01890914f486f3103f8cdd0d70f Mon Sep 17 00:00:00 2001
+From: Seunghyun Pyo <kmidus@gmail.com>
+Date: Wed, 4 Feb 2026 20:30:39 +1100
+Subject: [PATCH] A-PATCH: add Step12 adapter enforcement plan (LOCK-safe)
+
+---
+ core/execution/contracts/step12_adapter_plan.yaml | 14 ++++++++++++++
+ tests/adapters/test_adapter_enforced_step12.py    | 12 ++++++++++++
+ 2 files changed, 26 insertions(+)
+ create mode 100644 core/execution/contracts/step12_adapter_plan.yaml
+ create mode 100644 tests/adapters/test_adapter_enforced_step12.py
+
+diff --git a/core/execution/contracts/step12_adapter_plan.yaml b/core/execution/contracts/step12_adapter_plan.yaml
+new file mode 100644
+index 0000000..4722d0f
+--- /dev/null
++++ b/core/execution/contracts/step12_adapter_plan.yaml
+@@ -0,0 +1,14 @@
++# Step12 Adapter Enforcement Plan
++# LOCK-safe 계약/계획 정의
++
++version: v1
++notes:
++  - Step 12 focuses on planning for future enforced adapter extensions.
++  - This is informational only, no code execution.
++  - Must not modify existing runtime or shadow behavior.
++
++adapters:
++  - adapter_name: "mock"
++    enforcement_mode: "shadow_default"
++    side_effects_allowed: false
++    notes: "Planning/contract phase only"
+diff --git a/tests/adapters/test_adapter_enforced_step12.py b/tests/adapters/test_adapter_enforced_step12.py
+new file mode 100644
+index 0000000..6c56063
+--- /dev/null
++++ b/tests/adapters/test_adapter_enforced_step12.py
+@@ -0,0 +1,12 @@
++import yaml
++from pathlib import Path
++
++def test_step12_contract_file_exists_and_parseable():
++    path = Path("core/execution/contracts/step12_adapter_plan.yaml")
++    assert path.exists(), "Step12 contract file is missing"
++    data = yaml.safe_load(path.read_text())
++    assert data.get("version") == "v1"
++    assert "adapters" in data
++    for row in data["adapters"]:
++        for key in ("adapter_name", "enforcement_mode", "side_effects_allowed"):
++            assert key in row
+-- 
+2.50.1 (Apple Git-155)
+
