@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EngineRequestV1",
+  "type": "object",
+  "required": ["meta", "event"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["org_id", "site_id", "source", "ts_start_iso", "ts_end_iso"],
+      "properties": {
+        "org_id": {"type": "string"},
+        "site_id": {"type": "string"},
+        "source": {"type": "string"},
+        "ts_start_iso": {"type": "string"},
+        "ts_end_iso": {"type": "string"},
+        "scene_id": {"type": ["string","null"]},
+        "channel": {"type": ["string","null"]}
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string"},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "signals": {
+      "type": "array",
+      "items": {"type": "object"},
+      "default": []
+    },
+    "proposed_decision": {
+      "type": ["object","null"],
+      "default": null
+    },
+    "human_decision": {
+      "type": ["object","null"],
+      "default": null
+    }
+  },
+  "additionalProperties": false
+}
