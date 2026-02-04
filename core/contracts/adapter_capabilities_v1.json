@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "notes": [
+    "Declarative capability matrix for adapters.",
+    "Step 2: informational only (no enforcement).",
+    "Shadow semantics: side_effects must be false."
+  ],
+  "adapters": [
+    {
+      "adapter_name": "mock",
+      "modes": ["ok", "mismatch", "timeout", "ambiguous"],
+      "timeouts_ms": 1500,
+      "side_effects": false
+    }
+  ]
+}
