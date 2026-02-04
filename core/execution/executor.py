@@ -16,6 +16,7 @@ from core.contracts.errors import (
     ContractConstraintError,
 )
 from core.contracts.execution_envelope import ExecutionEnvelope
+from core.observer.observer_hook import emit_shadow_observation
 
 
 @dataclass(frozen=True)
@@ -116,24 +117,36 @@ def _validate_schema(value: Any, schema: dict, path: str = "$") -> None:
 
 def run_shadow_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(request, dict):
+        emit_shadow_observation(outcome="deny", reason_code="CONTRACT_MISMATCH", adapter_name=adapter_name)
         raise ShadowAdapterError("request must be an object")
 
-    _validate_schema(request, _load_schema("engine_request_v1.json"))
+    try:
+        _validate_schema(request, _load_schema("engine_request_v1.json"))
+    except ShadowAdapterError:
+        emit_shadow_observation(outcome="deny", reason_code="CONTRACT_MISMATCH", adapter_name=adapter_name)
+        raise
 
     try:
         adapter = resolve_adapter(adapter_name)
     except AdapterRegistryError as exc:
+        emit_shadow_observation(outcome="deny", reason_code="ADAPTER_UNKNOWN", adapter_name=adapter_name)
         raise ShadowAdapterError(str(exc)) from exc
 
     try:
         response = adapter.call(request)
     except AdapterError as exc:
+        emit_shadow_observation(outcome="deny", reason_code="ADAPTER_CALL_FAILED", adapter_name=adapter_name)
         raise ShadowAdapterError(f"adapter call failed: {exc}") from exc
 
     if not isinstance(response, dict):
+        emit_shadow_observation(outcome="deny", reason_code="RESPONSE_TYPE_MISMATCH", adapter_name=adapter_name)
         raise ShadowAdapterError("adapter response must be an object")
 
-    _validate_schema(response, _load_schema("engine_result_v1.json"))
+    try:
+        _validate_schema(response, _load_schema("engine_result_v1.json"))
+    except ShadowAdapterError:
+        emit_shadow_observation(outcome="deny", reason_code="CONTRACT_MISMATCH", adapter_name=adapter_name)
+        raise
 
     adapter_contract = {
         "adapter_name": adapter.name,
@@ -141,7 +154,13 @@ def run_shadow_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> 
         "request": request,
         "response": response,
     }
-    _validate_schema(adapter_contract, _load_schema("adapter_contract_v1.json"))
+    try:
+        _validate_schema(adapter_contract, _load_schema("adapter_contract_v1.json"))
+    except ShadowAdapterError:
+        emit_shadow_observation(outcome="deny", reason_code="CONTRACT_MISMATCH", adapter_name=adapter_name)
+        raise
+
+    emit_shadow_observation(outcome="ok", reason_code="OK", adapter_name=adapter_name)
 
     return response
 
