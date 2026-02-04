@@ -25,3 +25,6 @@ Judgment_Data/core/*.jsonl
 
 # common local artifacts
 .DS_Store
+
+# local env (direnv)
+.envrc
