@@ -1,0 +1,5 @@
+# Step17 enforced adapter plan (LOCK-safe)
+adapter: enforced
+policies:
+  - fail_closed: true
+  - shadow_default: true
