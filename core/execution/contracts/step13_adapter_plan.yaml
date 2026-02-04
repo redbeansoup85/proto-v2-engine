@@ -1,0 +1,6 @@
+# Step13 Adapter Enforcement Plan (LOCK-safe)
+version: v1
+notes:
+  - Additional enforced adapter validation for Step13
+  - Shadow adapters remain non-blocking
+  - Enforced adapters: fail-closed unless side_effects=True
