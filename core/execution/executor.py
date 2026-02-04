@@ -165,6 +165,21 @@ def run_shadow_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> 
     return response
 
 
+def run_enforced_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
+    emit_shadow_observation(
+        outcome="deny",
+        reason_code="ENFORCED_DISABLED",
+        adapter_name=adapter_name,
+    )
+    raise ShadowAdapterError("enforced adapter path disabled")
+
+
+def run_adapter(*, adapter_name: str | None, request: dict[str, Any]) -> dict[str, Any]:
+    if is_shadow_only():
+        return run_shadow_adapter(adapter_name=adapter_name, request=request)
+    return run_enforced_adapter(adapter_name=adapter_name, request=request)
+
+
 def run_execution(*, envelope: ExecutionEnvelope, port: Any, ctx: ExecutionContext) -> Any:
     # 0) hard type check (fail-closed)
     if not isinstance(envelope, ExecutionEnvelope):
