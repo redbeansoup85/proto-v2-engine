@@ -12,22 +12,28 @@ class Finding:
     snippet: str
 
 DENY_PATTERNS = [
-    ("EXEC_CALL", re.compile(r"\b(execute|dispatch|place_order|send_order|broker\.|exchange\.)\b")),
-    ("EXEC_IMPORT", re.compile(r"\b(import\s+.*executor|from\s+.*executor\s+import)\b")),
+    ("EXEC_TRADE", re.compile(r"\b(place_order|submit_order|send_order|execute_trade|broker\.|exchange\.)\b")),
+    ("EXEC_HTTP", re.compile(r"\b(requests\.(get|post|put|delete)|httpx\.(get|post|put|delete))\b")),
+    ("EXEC_SHELL", re.compile(r"\b(os\.system|subprocess\.(run|Popen|call))\b")),
 ]
 
-ALLOW_PATH_HINTS = ["approval", "handlers/approval", "approval_handler"]
+EXCLUDE_DIRS = {
+    ".venv", "venv", "__pycache__", "site-packages",
+    ".git", ".mypy_cache", ".pytest_cache",
+    "proto_v2_engine.egg-info",
+}
+
+def _excluded(p: Path) -> bool:
+    return any(part in EXCLUDE_DIRS for part in p.parts)
 
 def scan_tree(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for p in root.rglob("*.py"):
+        if _excluded(p):
+            continue
         txt = p.read_text(encoding="utf-8", errors="ignore").splitlines()
-        allow = any(h in str(p).lower() for h in ALLOW_PATH_HINTS)
-
         for i, line in enumerate(txt, start=1):
             for rule_id, rx in DENY_PATTERNS:
                 if rx.search(line):
-                    if allow:
-                        continue
                     findings.append(Finding(rule_id, str(p), i, rx.pattern, line.strip()[:200]))
     return findings
