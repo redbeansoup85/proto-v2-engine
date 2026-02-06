@@ -151,5 +151,25 @@ def main() -> int:
     return 0
 
 
+# -------------------------------------------------------------------
+# Back-compat export for unit tests
+# -------------------------------------------------------------------
+def scan_tree(root: Path) -> list[Finding]:
+    """
+    Backward-compatible API for unit tests.
+
+    NOTE:
+    - This scans all *.py under the provided root.
+    - It intentionally does NOT apply IGNORE_PREFIXES, because tests commonly
+      build a temporary directory tree and expect it to be fully scanned.
+    """
+    targets: list[Path] = []
+    for p in root.rglob("*.py"):
+        if _excluded(p):
+            continue
+        targets.append(p)
+    return scan_targets(targets)
+
+
 if __name__ == "__main__":
     raise SystemExit(main())
