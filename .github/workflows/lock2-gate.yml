@@ -9,6 +9,8 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - uses: actions/checkout@v4
 
