@@ -154,6 +154,10 @@ def run_observer_gate(
 ) -> Tuple[int, List[Finding]]:
     findings: List[Finding] = []
 
+    if not path.exists():
+        findings.append(Finding("LOCK3_PARSE_ERROR", str(path), 1, "missing_file", ""))
+        return 1, findings
+
     try:
         lines = _load_jsonl(path)
     except ValueError as exc:
@@ -197,14 +201,16 @@ def run_observer_gate(
         link_map[run_id] = current
 
     if replay_path is not None:
+        if not replay_path.exists():
+            findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "missing_file", ""))
+            return 1, findings
         try:
             replay_text = replay_path.read_text(encoding="utf-8")
         except Exception as exc:  # noqa: BLE001
             findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "read", str(exc)))
             return 1, findings
-        if replay_text.strip() == "":
-            findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "blank_line", ""))
-            return 1, findings
+        if replay_text == "":
+            return 0, findings
         try:
             replay_obj = json.loads(replay_text)
         except Exception:  # noqa: BLE001
@@ -230,14 +236,22 @@ def run_observer_gate(
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="LOCK-3 Observer Gate (Fail-Closed)")
-    ap.add_argument("--path", required=True, help="Path to observer event jsonl")
+    ap.add_argument("--path", action="append", required=True, help="Path to observer event jsonl")
     ap.add_argument("--replay", required=False, help="Optional replay packet json/jsonl")
     args = ap.parse_args(argv)
 
-    code, findings = run_observer_gate(
-        path=Path(args.path),
-        replay_path=Path(args.replay) if args.replay else None,
-    )
+    findings: List[Finding] = []
+    code = 0
+    for p in args.path:
+        path = Path(p)
+        rcode, rfindings = run_observer_gate(
+            path=path,
+            replay_path=Path(args.replay) if args.replay else None,
+        )
+        if rcode != 0:
+            code = 1
+        findings.extend(rfindings)
+
     if findings:
         for line in _findings_to_lines(findings):
             print(line)
