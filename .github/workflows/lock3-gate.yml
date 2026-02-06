@@ -1,0 +1,50 @@
+name: lock3-gate
+
+on:
+  pull_request:
+    paths:
+      - "var/audit/lock3_chain.jsonl"
+      - "audits/**.lock3.json"
+      - "docs/governance/contracts/**"
+      - "tools/audit/**"
+      - "tools/gates/**"
+      - ".github/workflows/lock3-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+
+      - name: Ensure audit chain file exists (fail-closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "var/audit/lock3_chain.jsonl" ]; then
+            echo "FAIL-CLOSED: missing var/audit/lock3_chain.jsonl"
+            exit 1
+          fi
+
+      - name: Run LOCK-3 Observer Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m tools.gates.lock3_observer_gate \
+            --path var/audit/lock3_chain.jsonl
