@@ -147,3 +147,53 @@ def test_fail_parse_error(tmp_path: Path) -> None:
     code, findings = lock3_observer_gate.run_observer_gate(path=path)
     assert code == 1
     assert any(f.rule_id == "LOCK3_PARSE_ERROR" for f in findings)
+
+
+def test_fail_missing_events_file(tmp_path: Path) -> None:
+    path = tmp_path / "missing.jsonl"
+    code, findings = lock3_observer_gate.run_observer_gate(path=path)
+    assert code == 1
+    assert any(f.rule_id == "LOCK3_PARSE_ERROR" for f in findings)
+
+
+def test_fail_missing_replay_file(tmp_path: Path) -> None:
+    path = tmp_path / "lock3.jsonl"
+    path.write_text("", encoding="utf-8")
+    replay = tmp_path / "missing_replay.json"
+    code, findings = lock3_observer_gate.run_observer_gate(path=path, replay_path=replay)
+    assert code == 1
+    assert any(f.rule_id == "LOCK3_PARSE_ERROR" for f in findings)
+
+
+def test_pass_empty_chain(tmp_path: Path) -> None:
+    path = tmp_path / "lock3.jsonl"
+    path.write_text("", encoding="utf-8")
+    code, findings = lock3_observer_gate.run_observer_gate(path=path)
+    assert code == 0
+    assert findings == []
+
+
+def test_fail_replay_artifact_path_invalid(tmp_path: Path) -> None:
+    path = tmp_path / "lock3.jsonl"
+    path.write_text("", encoding="utf-8")
+    replay = tmp_path / "replay.json"
+    replay.write_text(
+        json.dumps(
+            {
+                "schema_version": "lock3/replay_packet@1.0",
+                "packet_id": "PK-0001",
+                "ts": "2026-02-05T00:00:00Z",
+                "judgment_id": "J-1",
+                "approval_record_id": "A-1",
+                "execution_run_id": "R-1",
+                "inputs_digest": "0" * 64,
+                "artifacts": [{"path": "../secrets.txt", "kind": "log"}],
+                "prev_hash": "0" * 64,
+                "hash": "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    code, findings = lock3_observer_gate.run_observer_gate(path=path, replay_path=replay)
+    assert code == 1
+    assert any(f.rule_id == "LOCK3_ARTIFACT_PATH_INVALID" for f in findings)
