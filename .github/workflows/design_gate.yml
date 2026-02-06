@@ -7,10 +7,14 @@ on:
 jobs:
   pr-body-gate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
 
   registry-hash-gate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +35,8 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +62,8 @@ jobs:
           python -m pytest -q
   phase1-verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - uses: actions/checkout@v4
 
@@ -75,6 +83,8 @@ jobs:
 
   phase2-verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - uses: actions/checkout@v4
 

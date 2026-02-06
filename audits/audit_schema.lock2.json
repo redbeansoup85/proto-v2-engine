@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id","event_type","timestamp","actor","reason","evidence_refs","hash_prev","payload"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "event_type": {"type": "string"},
+    "timestamp": {"type": "string"},
+    "actor": {"type": "string"},
+    "reason": {"type": "string"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "hash_prev": {"type": "string"},
+    "payload": {"type": "object"}
+  }
+}

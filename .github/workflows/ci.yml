@@ -7,9 +7,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,18 +26,29 @@ jobs:
         run: |
           set -euo pipefail
 
+          # PR이면 base..head commit subjects를 보고, push면 HEAD subject만 본다.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            msg="${{ github.event.pull_request.title }}"
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            subjects="$(git log --format=%s "$base..$head" || true)"
           else
-            msg="$(git log -1 --pretty=%B)"
+            subjects="$(git log -1 --format=%s)"
           fi
 
-          echo "Message:"
-          echo "$msg"
+          echo "Subjects:"
+          echo "$subjects"
 
-          token="$(printf "%s" "$msg" | sed -nE 's/^(A-(MAJOR|MINOR|PATCH)):.*/\1/p' | head -n1)"
+          token=""
+          if echo "$subjects" | grep -Eq '^A-MAJOR:'; then
+            token="A-MAJOR"
+          elif echo "$subjects" | grep -Eq '^A-MINOR:'; then
+            token="A-MINOR"
+          elif echo "$subjects" | grep -Eq '^A-PATCH:'; then
+            token="A-PATCH"
+          fi
+
           if [ -z "$token" ]; then
-            echo "Missing classification token. Expected prefix: A-MAJOR: / A-MINOR: / A-PATCH:"
+            echo "Missing classification token in commit subjects."
             exit 1
           fi
 
@@ -80,6 +90,7 @@ jobs:
           python -m pip install ".[test]"
 
       - name: Run tests
+        shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
