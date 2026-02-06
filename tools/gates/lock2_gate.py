@@ -1,8 +1,13 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 import re
 import argparse
+import os
+import json
+import subprocess
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -11,6 +16,7 @@ class Finding:
     line: int
     pattern: str
     snippet: str
+
 
 # "execution" 관련 참조가 승인 경로 밖에서 나타나면 fail-closed
 DENY_PATTERNS = [
@@ -29,14 +35,79 @@ EXCLUDE_DIRS = {
     "proto_v2_engine.egg-info",
 }
 
+# gate/test/workflow는 스캔 제외 (자기 패턴/테스트 문자열 때문에 무조건 걸리는 것 방지)
+IGNORE_PREFIXES = (
+    "tools/gates/",
+    "tests/",
+    ".github/workflows/",
+)
+
+
 def _excluded(p: Path) -> bool:
     return any(part in EXCLUDE_DIRS for part in p.parts)
 
-def scan_tree(root: Path) -> list[Finding]:
-    findings: list[Finding] = []
+
+def _ignored_relpath(rel: str) -> bool:
+    rel = rel.replace("\\", "/")
+    return rel.startswith(IGNORE_PREFIXES)
+
+
+def _git_changed_files_from_pr_event() -> list[str]:
+    event_path = os.getenv("GITHUB_EVENT_PATH", "")
+    if not event_path:
+        return []
+    try:
+        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+        pr = payload.get("pull_request") or {}
+        base = (pr.get("base") or {}).get("sha")
+        head = (pr.get("head") or {}).get("sha")
+        if not base or not head:
+            return []
+        out = subprocess.check_output(["git", "diff", "--name-only", base, head], text=True)
+        return [x.strip() for x in out.splitlines() if x.strip()]
+    except Exception:
+        return []
+
+
+def iter_scan_targets(root: Path) -> list[Path]:
+    # PR 이벤트: 변경 파일만 스캔
+    if os.getenv("GITHUB_EVENT_NAME") == "pull_request":
+        changed = _git_changed_files_from_pr_event()
+
+        # FAIL-CLOSED: PR인데 변경 파일 자체를 못 읽으면 차단
+        if not changed:
+            raise RuntimeError("FAIL-CLOSED: could not determine PR changed files for LOCK-2 scan")
+
+        targets: list[Path] = []
+        for rel in changed:
+            rel_n = rel.replace("\\", "/")
+            if _ignored_relpath(rel_n):
+                continue
+            p = root / rel_n
+            if p.is_file() and p.suffix == ".py" and not _excluded(p):
+                targets.append(p)
+
+        # PR에서 스캔 대상 py가 0이면 OK (파이썬 코드 변경이 없었음)
+        return targets
+
+    # push/local: 전체 스캔 (단, ignore prefixes는 동일 적용)
+    targets: list[Path] = []
     for p in root.rglob("*.py"):
         if _excluded(p):
             continue
+        try:
+            rel = p.relative_to(root).as_posix()
+        except Exception:
+            rel = p.as_posix()
+        if _ignored_relpath(rel):
+            continue
+        targets.append(p)
+    return targets
+
+
+def scan_targets(paths: list[Path]) -> list[Finding]:
+    findings: list[Finding] = []
+    for p in paths:
         path_l = str(p).lower()
         allow = any(h in path_l for h in ALLOW_PATH_HINTS)
 
@@ -49,12 +120,25 @@ def scan_tree(root: Path) -> list[Finding]:
                     findings.append(Finding(rule_id, str(p), i, rx.pattern, line.strip()[:200]))
     return findings
 
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".", help="root directory to scan")
     args = ap.parse_args()
+    root = Path(args.root)
 
-    findings = scan_tree(Path(args.root))
+    try:
+        targets = iter_scan_targets(root)
+    except RuntimeError as e:
+        print(str(e))
+        return 1
+
+    # PR에서 스캔 대상이 없으면 OK
+    if not targets:
+        print("OK: LOCK-2 gate clean (no changed .py files to scan)")
+        return 0
+
+    findings = scan_targets(targets)
     if findings:
         print("FAIL-CLOSED: LOCK-2 gate findings detected")
         for f in findings[:200]:
@@ -65,6 +149,7 @@ def main() -> int:
 
     print("OK: LOCK-2 gate clean")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
