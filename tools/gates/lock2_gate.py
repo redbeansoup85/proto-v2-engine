@@ -69,9 +69,48 @@ def _git_changed_files_from_pr_event() -> list[str]:
         return []
 
 
+def _git_changed_files_from_push_event() -> list[str]:
+    event_path = os.getenv("GITHUB_EVENT_PATH", "")
+    if not event_path:
+        return []
+    try:
+        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+        before = payload.get("before")
+        after = payload.get("after")
+        if not before or not after:
+            return []
+        out = subprocess.check_output(["git", "diff", "--name-only", before, after], text=True)
+        return [x.strip() for x in out.splitlines() if x.strip()]
+    except Exception:
+        return []
+
+
 def iter_scan_targets(root: Path) -> list[Path]:
-    # PR 이벤트: 변경 파일만 스캔
-    if os.getenv("GITHUB_EVENT_NAME") == "pull_request":
+    # GitHub Actions: PR/push 모두 "변경 파일만" 스캔 (새 위반 유입 차단 목적)
+    # - pull_request: base..head
+    # - push: before..after
+    if os.getenv("GITHUB_ACTIONS") == "true" and os.getenv("GITHUB_EVENT_NAME") in {"pull_request", "push"}:
+        ev = os.getenv("GITHUB_EVENT_NAME")
+        changed = _git_changed_files_from_pr_event() if ev == "pull_request" else _git_changed_files_from_push_event()
+
+        # FAIL-CLOSED: CI 이벤트인데 변경 파일을 못 읽으면 차단
+        if not changed:
+            raise RuntimeError("FAIL-CLOSED: could not determine changed files for LOCK-2 scan")
+
+        targets: list[Path] = []
+        for rel in changed:
+            rel_n = rel.replace("\\", "/")
+            if _ignored_relpath(rel_n):
+                continue
+            p = root / rel_n
+            if p.is_file() and p.suffix == ".py" and not _excluded(p):
+                targets.append(p)
+
+        # 스캔 대상 py가 0이면 OK (파이썬 코드 변경이 없었음)
+        return targets
+
+    # push/local: 전체 스캔 (단, ignore prefixes는 동일 적용)
+
         changed = _git_changed_files_from_pr_event()
 
         # FAIL-CLOSED: PR인데 변경 파일 자체를 못 읽으면 차단

@@ -105,4 +105,4 @@ jobs:
           python -m py_compile infra/api/alembic/env.py
           python -m alembic -c infra/api/alembic.ini -q upgrade head
 
-          python -m pytest -q
+          make test
