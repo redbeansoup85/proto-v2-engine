@@ -29,4 +29,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python tools/gates/adapter_registry_gate.py --root ./
+          python tools/gates/adapter_registry_gate.py
