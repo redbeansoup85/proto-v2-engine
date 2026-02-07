@@ -37,6 +37,17 @@ jobs:
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: LOCK3_FASTPATH_SUMMARY
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "LOCK3_RELEVANT=${{ steps.changes.outputs.relevant }}"
+          if [ "${{ steps.changes.outputs.relevant }}" != "true" ]; then
+            echo "LOCK3_FASTPATH=SKIP_GATE_STEPS"
+          else
+            echo "LOCK3_FASTPATH=RUN_GATE_STEPS"
+          fi
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
