@@ -29,14 +29,13 @@ jobs:
           if [ -f pyproject.toml ]; then
             python -m pip install -e ".[test]" || python -m pip install -e .
           else
-            python -m pip install pytest
           fi
 
       - name: Unit tests (fail-closed)
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q
+          make test
 
       - name: LOCK-2 gate (approval is sole trigger)
         shell: bash
