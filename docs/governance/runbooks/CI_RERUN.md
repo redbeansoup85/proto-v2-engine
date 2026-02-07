@@ -95,4 +95,27 @@ YES → gate 로직 또는 ruleset 자체 점검
 
 PR body 변경 → rerun → gate 통과
 
-동일 증상 재발 시 추론 없이 즉시 복구 가능
+동일 증상 재발 시 추론 없이 즉시 복구 가능## POSTMORTEM-lite: CI main-green recovery (LOCKED)
+
+- **Incident**: main push CI failures caused by legacy workflow loading error and prior governance-docs merge with invalid token.
+- **Root Causes**:
+  1) Legacy `.github/workflows/required-checks-gate.yml` remained and failed at workflow load (0s failure).
+  2) Governance docs were merged with `A-PATCH`, violating token policy enforced on push.
+- **Resolution**:
+  - Removed legacy required-checks workflow (PR #109).
+  - Confirmed contract-based required checks as the sole enforcement path.
+- **Verification**:
+  - All main push checks green at HEAD (proto-v2-engine-ci, contract gate, adapters).
+- **Status**: **LOCKED** — main-green restored without weakening governance rules.
+
+> NOTE: Historical red runs prior to LOCK are non-actionable and do not affect current governance state.
+
+### Recommended Operational Steps
+
+1. Before merging any PR touching `docs/governance/**`:
+   - Verify token: A-MINOR or A-MAJOR
+   - Ensure PR title matches token
+2. On PR merge:
+   - Observe `proto-v2-engine-ci` and contract-gate runs on main
+   - If any check fails, follow LOCK escalation protocol
+3. Historical red runs prior to this LOCK are informational only; do not trigger re-runs.
