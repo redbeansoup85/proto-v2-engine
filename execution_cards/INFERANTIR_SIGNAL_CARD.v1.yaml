@@ -1,0 +1,29 @@
+id: INFERANTIR-SIGNAL-CARD-v1
+owner: B1.INFERANTIR
+kind: execution_card
+status: active
+
+requires:
+  - LOCK-BOOTSTRAP
+  - LOCK-2
+  - LOCK-3
+
+scope:
+  domain: markets
+  venue: equities_crypto
+  mode: analysis_only
+  risk_tier: non_executing
+
+approval:
+  required: false
+  scope: []
+
+evidence:
+  observer_event_required: true
+  replay_packet_required: true
+
+limits:
+  max_requests_per_minute: 60
+
+notes:
+  - "Signal/analysis card only. No external execution. Still requires audit evidence."
