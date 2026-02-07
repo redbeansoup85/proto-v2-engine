@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "source": "github_ruleset",
+  "repo": "redbeansoup85/proto-v2-engine",
+  "ruleset_id": 12562607,
+  "ruleset_name": "protect-main",
+  "required_status_checks": [
+    "adapter-registry-gate",
+    "bootstrap-ref-gate",
+    "lock2-gate",
+    "lock3-gate",
+    "loop-gate",
+    "proto-v2-engine-ci-test"
+  ],
+  "normalized": { "deduped": true, "sorted": true }
+}
