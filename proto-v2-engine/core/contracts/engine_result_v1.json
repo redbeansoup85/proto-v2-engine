@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EngineResultV1",
+  "type": "object",
+  "required": ["ok", "engine_output"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "engine_output": {
+      "type": "object",
+      "required": ["meta", "decision", "signals"],
+      "properties": {
+        "meta": {"type": "object"},
+        "decision": {"type": "object"},
+        "signals": {"type": "array"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
