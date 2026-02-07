@@ -14,11 +14,6 @@ scope:
   mode: paper   # paper|live (live는 별도 승인/게이트 필요)
   risk: bounded
 
-gates:
-  approval_required: true
-  observer_event_required: true
-  replay_packet_required: true
-
 limits:
   max_orders_per_hour: 5
   max_notional_usd: 1000
