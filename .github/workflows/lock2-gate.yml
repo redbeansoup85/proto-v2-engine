@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  gate:
+  lock2-gate:
+
     name: lock2-gate
     runs-on: ubuntu-latest
     env:
