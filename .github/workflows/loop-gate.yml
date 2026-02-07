@@ -12,6 +12,7 @@ on:
 
 jobs:
   gate:
+    name: loop-gate
     runs-on: ubuntu-latest
     env:
       ROOT: ${{ github.event.inputs.root_dir || 'tasks' }}
@@ -28,6 +29,7 @@ jobs:
             find SCHEMAS -maxdepth 2 -type f -print >&2 || true
             exit 1
           fi
+
       - name: Enforce TASK_LOOP under ROOT (exclude _template)
         shell: bash
         run: |
