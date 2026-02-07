@@ -14,7 +14,7 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     env:
-      ROOT: ${{ (github.event_name == 'workflow_dispatch' && inputs.root_dir) || 'tasks' }}
+      ROOT: ${{ github.event.inputs.root_dir || 'tasks' }}
 
     steps:
       - uses: actions/checkout@v4
