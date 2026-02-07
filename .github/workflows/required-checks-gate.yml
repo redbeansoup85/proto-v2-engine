@@ -1,4 +1,0 @@
-name: required-checks-gate
-
-on:
-  pull_request:
