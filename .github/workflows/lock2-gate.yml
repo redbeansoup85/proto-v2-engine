@@ -8,6 +8,7 @@ on:
 
 jobs:
   gate:
+    name: lock2-gate
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "sqlite+aiosqlite:///test.db"
@@ -27,7 +28,6 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e '.[test]' || python -m pip install -e .
-
 
       - name: Unit tests (fail-closed)
         shell: bash
