@@ -2,13 +2,6 @@ name: lock3-gate
 
 on:
   pull_request:
-    paths:
-      - "var/audit/lock3_chain.jsonl"
-      - "audits/**.lock3.json"
-      - "docs/governance/contracts/**"
-      - "tools/audit/**"
-      - "tools/gates/**"
-      - ".github/workflows/lock3-gate.yml"
   workflow_dispatch:
 
 jobs:
