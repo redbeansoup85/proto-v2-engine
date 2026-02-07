@@ -11,7 +11,8 @@ on:
         default: "tasks"
 
 jobs:
-  gate:
+  loop-gate:
+
     name: loop-gate
     runs-on: ubuntu-latest
     env:

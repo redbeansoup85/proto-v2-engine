@@ -5,7 +5,8 @@ on:
   pull_request:
 
 jobs:
-  gate:
+  bootstrap-ref-gate:
+
     name: bootstrap-ref-gate
     runs-on: ubuntu-latest
 

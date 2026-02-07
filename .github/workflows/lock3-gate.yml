@@ -12,7 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  gate:
+  lock3-gate:
+
     name: lock3-gate
     runs-on: ubuntu-latest
     env:
