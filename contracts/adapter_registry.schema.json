@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adapter_registry.schema.json",
+  "title": "Adapter Registry Contract v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "entries"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "ADAPTER_REGISTRY_V1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["card_id", "adapter_path", "approval_mode", "capabilities", "risk_tier", "enabled"],
+        "properties": {
+          "card_id": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 128,
+            "pattern": "^[A-Z0-9][A-Z0-9_\\-\\.]+$"
+          },
+          "adapter_path": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 256,
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$"
+          },
+          "approval_mode": { "type": "string", "enum": ["HUMAN_REQUIRED", "AUTO_ALLOWED", "DUAL_CONTROL"] },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["READ_ONLY","WRITE_LOCAL","NETWORK_CALL","ORDER_EXECUTION","PHYSICAL_ACTUATION","SECRETS_ACCESS","DATA_DELETE"]
+            }
+          },
+          "risk_tier": { "type": "string", "enum": ["T0","T1","T2","T3"] },
+          "enabled": { "type": "boolean" },
+          "notes": { "type": "string", "maxLength": 400 }
+        }
+      }
+    }
+  }
+}
