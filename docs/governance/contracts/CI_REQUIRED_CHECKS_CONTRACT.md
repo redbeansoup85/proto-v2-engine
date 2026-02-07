@@ -28,3 +28,7 @@ REQUIRES:
 ## Fail-Closed
 If any required check cannot be resolved to an existing workflow job,
 merge MUST be blocked.
+
+---
+
+NOTE: 2026-02-07 — governance contract changes require at least A-MINOR (retroactive classification correction).
