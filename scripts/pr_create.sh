@@ -23,17 +23,19 @@ case "$CLASS" in
   *) echo "ERROR: classification must be A-PATCH|A-MINOR|A-MAJOR"; exit 1 ;;
 esac
 
-# 최근 커밋 1줄(브랜치에서)
+TEMPLATE_PATH="docs/governance/PR_BODY_TEMPLATE.md"
+if [ ! -f "$TEMPLATE_PATH" ]; then
+  echo "ERROR: missing template: $TEMPLATE_PATH"
+  exit 1
+fi
+
 LAST_COMMIT="$(git log -1 --format='%h %s' || true)"
 
-# 변경 파일 기반 DESIGN_ARTIFACT 자동 추론(사실 기반)
-# - PR에서의 base는 main을 가정(표준 루틴)
 git fetch origin main >/dev/null 2>&1 || true
 CHANGED="$(git diff --name-only origin/main...HEAD || true)"
 
 DESIGN_ARTIFACT="n/a"
 if echo "$CHANGED" | grep -Eq '^(design/|docs/design/)'; then
-  # 변경된 design 관련 경로를 콤마로
   DESIGN_ARTIFACT="$(echo "$CHANGED" | grep -E '^(design/|docs/design/)' | tr '\n' ',' | sed 's/,$//')"
 fi
 
@@ -41,12 +43,13 @@ WHY_NOW="Automated PR_REQUEST compliance + branch ${BRANCH}. Latest: ${LAST_COMM
 VERIFY="CI green (checks), local sanity where applicable"
 BREAK_RISK="Low"
 
+BODY="$(cat "$TEMPLATE_PATH")"
+BODY="${BODY//'{{WHY_NOW}}'/$WHY_NOW}"
+BODY="${BODY//'{{VERIFY}}'/$VERIFY}"
+BODY="${BODY//'{{BREAK_RISK}}'/$BREAK_RISK}"
+BODY="${BODY//'{{DESIGN_ARTIFACT}}'/$DESIGN_ARTIFACT}"
+BODY="${BODY//'{{STAGE}}'/$STAGE}"
+
 gh pr create --base main --head "$BRANCH" \
   --title "$CLASS: $TITLE" \
-  --body-file - <<EOF
-WHY_NOW: ${WHY_NOW}
-VERIFY: ${VERIFY}
-BREAK_RISK: ${BREAK_RISK}
-DESIGN_ARTIFACT: ${DESIGN_ARTIFACT}
-STAGE: ${STAGE}
-EOF
+  --body "$BODY"
