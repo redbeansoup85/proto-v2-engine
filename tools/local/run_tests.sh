@@ -12,11 +12,11 @@ rm -f test.db
 export DATABASE_URL="sqlite+aiosqlite:///test.db"
 
 # (옵션) 승인 만료 로직을 CI와 동일하게 강제하고 싶으면 1로 고정
-export APPROVAL_EXPIRER_ENABLED=1
+# export APPROVAL_EXPIRER_ENABLED=1
 
 # FAIL-CLOSED: 외부/전역 site-packages 테스트를 절대 줍지 않도록
 # pytest.ini testpaths만 따라가게 하고, --ignore로 방어선 추가
-pytest -q \
+python -m pytest -q \
   --ignore=.venv \
   --ignore=infra/api/.venv \
   --ignore=infra/api/venv \
