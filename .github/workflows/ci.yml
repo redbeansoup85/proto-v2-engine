@@ -6,6 +6,7 @@ on:
 
 jobs:
   test:
+    name: proto-v2-engine-ci-test
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "sqlite+aiosqlite:///test.db"
