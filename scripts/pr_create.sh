@@ -34,6 +34,15 @@ LAST_COMMIT="$(git log -1 --format='%h %s' || true)"
 git fetch origin main >/dev/null 2>&1 || true
 CHANGED="$(git diff --name-only origin/main...HEAD || true)"
 
+# Fail-closed: governance docs cannot be A-PATCH
+if echo "$CHANGED" | grep -Eq '^docs/governance/'; then
+  if [ "$CLASS" = "A-PATCH" ]; then
+    echo "ERROR: governance docs changed; use A-MINOR or A-MAJOR"
+    echo "$CHANGED"
+    exit 1
+  fi
+fi
+
 DESIGN_ARTIFACT="n/a"
 if echo "$CHANGED" | grep -Eq '^(design/|docs/design/)'; then
   DESIGN_ARTIFACT="$(echo "$CHANGED" | grep -E '^(design/|docs/design/)' | tr '\n' ',' | sed 's/,$//')"
