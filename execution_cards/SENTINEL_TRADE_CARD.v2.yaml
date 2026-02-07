@@ -1,0 +1,34 @@
+id: SENTINEL-TRADE-CARD-v2
+owner: B1.SENTINEL
+kind: execution_card
+status: active
+
+requires:
+  - LOCK-BOOTSTRAP
+  - LOCK-2
+  - LOCK-3
+
+scope:
+  domain: trading
+  venue: crypto
+  mode: paper   # paper|live (live requires additional approval scope)
+  risk_tier: bounded
+
+approval:
+  required: true
+  scope:
+    - "trade.place_order"
+    - "trade.cancel_order"
+  ttl_seconds: 900   # 15m default TTL (approval expiry recommended)
+
+evidence:
+  observer_event_required: true
+  replay_packet_required: true
+
+limits:
+  max_orders_per_hour: 5
+  max_notional_usd: 1000
+  max_leverage: 1
+
+notes:
+  - "Non-executable intent definition. Execution only via B0 bootstrap pipeline + gates + audit."
