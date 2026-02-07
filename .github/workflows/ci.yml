@@ -26,13 +26,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          # PR이면 base..head commit subjects를 보고, push면 HEAD subject만 본다.
+          # PR: base..head commit subjects (%s)
+          # push: HEAD full commit message (%B) to support merge commits
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
             head="${{ github.event.pull_request.head.sha }}"
             subjects="$(git log --format=%s "$base..$head" || true)"
           else
-            subjects="$(git log -1 --format=%s)"
+            subjects="$(git log -1 --format=%B)"
           fi
 
           echo "Subjects:"
@@ -67,7 +68,14 @@ jobs:
             head="${{ github.event.pull_request.head.sha }}"
             changed="$(git diff --name-only "$base" "$head" || true)"
           else
-            changed="$(git diff --name-only HEAD~1..HEAD || true)"
+            # push: prefer event before..after range (works for merge commits too)
+            before="${{ github.event.before }}"
+            after="${{ github.sha }}"
+            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              changed="$(git diff --name-only "$before" "$after" || true)"
+            else
+              changed="$(git diff --name-only HEAD~1..HEAD || true)"
+            fi
           fi
 
           echo "Changed files:"
