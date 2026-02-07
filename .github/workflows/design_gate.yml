@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  gate:
+  design-gate:
     name: "Design Gate: validate"
     runs-on: ubuntu-latest
     steps:
