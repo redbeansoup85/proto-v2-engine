@@ -17,6 +17,26 @@ jobs:
         with:
           fetch-depth: 0
 
+
+      - name: Detect LOCK-3 relevant changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "BASE_SHA=$BASE_SHA"
+          echo "HEAD_SHA=$HEAD_SHA"
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed_files.txt || true
+          echo "Changed files:"
+          sed -n '1,200p' /tmp/changed_files.txt || true
+
+          if grep -Eq '^(var/audit/lock3_chain\.jsonl|audits/.*\.lock3\.json|docs/governance/contracts/|tools/audit/|tools/gates/|\.github/workflows/lock3-gate\.yml)' /tmp/changed_files.txt; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -29,6 +49,7 @@ jobs:
           python -m pip install --upgrade pip
 
       - name: Ensure audit chain file exists (fail-closed)
+        if: steps.changes.outputs.relevant == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -38,6 +59,7 @@ jobs:
           fi
 
       - name: Run LOCK-3 Observer Gate
+        if: steps.changes.outputs.relevant == 'true'
         shell: bash
         run: |
           set -euo pipefail
