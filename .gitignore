@@ -32,3 +32,7 @@ Judgment_Data/core/*.jsonl
 # runtime audit artifacts (local only)
 audits/sentinel/outcomes/
 audits/sentinel/snapshots/
+
+# runtime audit artifacts (local-only)
+audits/sentinel/outcomes/
+audits/sentinel/snapshots/
