@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -27,7 +29,8 @@ jobs:
             pyyaml \
             pydantic fastapi \
             aiosqlite asgi-lifespan \
-            httpx
+            httpx \
+            jsonschema
 
       - name: Run tests
         env:
