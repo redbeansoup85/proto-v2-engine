@@ -14,9 +14,6 @@ skipped=0
 closed_with_ts=0
 sum_hours="0.0"
 
-# Portable epoch conversion:
-# - macOS: date -j -f "%Y-%m-%dT%H:%M:%SZ"
-# - linux: date -d
 to_epoch_utc() {
   local iso="$1"
   if date -u -d "$iso" +%s >/dev/null 2>&1; then
@@ -30,18 +27,9 @@ to_epoch_utc() {
   return 1
 }
 
-# mac/linux mtime epoch
-mtime_epoch() {
-  local f="$1"
-  if stat -c %Y "$f" >/dev/null 2>&1; then
-    stat -c %Y "$f"
-    return 0
-  fi
-  if stat -f %m "$f" >/dev/null 2>&1; then
-    stat -f %m "$f"
-    return 0
-  fi
-  return 1
+get_scalar() {
+  local key="$1" file="$2"
+  grep -E "^${key}:" "$file" | head -n1 | sed -E "s/^${key}:[[:space:]]*//; s/[[:space:]]*$//"
 }
 
 IFS='
@@ -50,7 +38,7 @@ for f in $FILES; do
   [ -f "$f" ] || continue
   total=$((total+1))
 
-  res="$(grep -E '^RESULT:' "$f" | head -n1 | sed -E 's/^RESULT:[[:space:]]*//; s/[[:space:]]*$//')"
+  res="$(get_scalar RESULT "$f")"
   case "$res" in
     OPEN) open=$((open+1)) ;;
     CLOSED) closed=$((closed+1)) ;;
@@ -59,18 +47,18 @@ for f in $FILES; do
     *) open=$((open+1)) ;;
   esac
 
-  # Time-to-close proxy (only if CLOSED + VERDICT verified_at_utc parseable)
   if [ "$res" = "CLOSED" ]; then
+    start_iso="$(get_scalar CREATED_AT_UTC "$f")"
     vfile="$(dirname "$f")/VERDICT.yaml"
     if [ -f "$vfile" ]; then
-      ts="$(grep -E '^verified_at_utc:' "$vfile" | head -n1 | sed -E 's/^verified_at_utc:[[:space:]]*//; s/[[:space:]]*$//')"
-      if [ -n "$ts" ]; then
-        end_epoch="$(to_epoch_utc "$ts" 2>/dev/null || true)"
-        start_epoch="$(mtime_epoch "$f" 2>/dev/null || true)"
-        if [ -n "${end_epoch:-}" ] && [ -n "${start_epoch:-}" ]; then
+      end_iso="$(get_scalar verified_at_utc "$vfile")"
+
+      if [ -n "$start_iso" ] && [ -n "$end_iso" ]; then
+        start_epoch="$(to_epoch_utc "$start_iso" 2>/dev/null || true)"
+        end_epoch="$(to_epoch_utc "$end_iso" 2>/dev/null || true)"
+        if [ -n "${start_epoch:-}" ] && [ -n "${end_epoch:-}" ]; then
           if [ "$end_epoch" -ge "$start_epoch" ]; then
             closed_with_ts=$((closed_with_ts+1))
-            # add hours as float
             sum_hours="$(awk -v s="$sum_hours" -v e="$end_epoch" -v st="$start_epoch" 'BEGIN { printf("%.6f", s + ((e-st)/3600.0)) }')"
           fi
         fi
