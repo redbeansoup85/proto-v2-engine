@@ -1,1 +1,8 @@
 /docs/public/ @redbeansoup85
+
+# --- ARCH-LOCK: Zone Boundary + Bridge Gate ---
+/docs/architecture/ @redbeansoup85
+/contracts/bridge/ @redbeansoup85
+/tools/gates/auralis_bridge_gate.py @redbeansoup85
+/tools/gates/zone_static_gate.py @redbeansoup85
+/.github/workflows/auralis-bridge-gate.yml @redbeansoup85

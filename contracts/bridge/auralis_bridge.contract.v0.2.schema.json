@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "contracts/bridge/auralis_bridge.contract.v0.2.schema.json",
+  "title": "AuralisBridgeContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "service", "endpoints", "required_headers", "timeout_ms", "retry_policy", "response_schema"],
+  "properties": {
+    "contract_version": { "type": "string", "enum": ["0.2"] },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "enum": ["auralis_v1"] }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["health", "invoke"],
+      "properties": {
+        "health": { "type": "string", "minLength": 1 },
+        "invoke": { "type": "string", "minLength": 1 }
+      }
+    },
+    "required_headers": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string" },
+      "allOf": [
+        { "contains": { "const": "X-Request-Id" } },
+        { "contains": { "const": "X-Audit-Trace" } }
+      ]
+    },
+    "timeout_ms": { "type": "integer", "minimum": 200, "maximum": 30000 },
+    "retry_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_attempts", "backoff_ms"],
+      "properties": {
+        "max_attempts": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "backoff_ms": { "type": "integer", "minimum": 0, "maximum": 5000 }
+      }
+    },
+    "response_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "required", "additionalProperties", "properties"],
+      "properties": {
+        "type": { "type": "string", "enum": ["object"] },
+        "required": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "string" },
+          "allOf": [
+            { "contains": { "const": "status" } },
+            { "contains": { "const": "trace_id" } },
+            { "contains": { "const": "audit_id" } }
+          ]
+        },
+        "additionalProperties": { "type": "boolean", "const": false },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "trace_id", "audit_id"],
+          "properties": {
+            "status": { "type": "string", "enum": ["success", "fail", "error"] },
+            "trace_id": { "type": "string", "minLength": 8 },
+            "audit_id": { "type": "string", "minLength": 8 },
+            "error": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["error_type", "message", "is_retryable"],
+              "properties": {
+                "error_type": { "type": "string" },
+                "message": { "type": "string", "minLength": 1 },
+                "is_retryable": { "type": "boolean" },
+                "context": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
