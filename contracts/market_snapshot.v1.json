@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "market_snapshot.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","asset","ts_utc","tf_state","deriv"],
+  "properties": {
+    "schema": {"const": "market_snapshot.v1"},
+    "asset": {"type": "string"},
+    "ts_utc": {"type": "string"},
+    "tf_state": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "price": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+          "vwap": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+          "ema20": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+          "ema50": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+          "ema200":{"oneOf":[{"type":"number"},{"const":"n/a"}]},
+          "rsi":   {"oneOf":[{"type":"number"},{"const":"n/a"}]}
+        }
+      }
+    },
+    "deriv": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "oi": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+        "funding": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+        "lsr": {"oneOf":[{"type":"number"},{"const":"n/a"}]},
+        "cvd_proxy": {
+          "type":"object",
+          "additionalProperties": false,
+          "properties":{
+            "futures":{"oneOf":[{"type":"number"},{"const":"n/a"}]},
+            "spot":{"oneOf":[{"type":"number"},{"const":"n/a"}]}
+          }
+        }
+      }
+    }
+  }
+}
