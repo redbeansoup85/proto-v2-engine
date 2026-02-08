@@ -28,3 +28,7 @@ Judgment_Data/core/*.jsonl
 
 # local env (direnv)
 .envrc
+
+# runtime audit artifacts (local only)
+audits/sentinel/outcomes/
+audits/sentinel/snapshots/
