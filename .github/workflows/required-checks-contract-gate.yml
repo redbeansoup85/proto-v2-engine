@@ -11,8 +11,8 @@ permissions:
   actions: read
 
 jobs:
-  gate:
-    name: gate
+  required-checks-contract-gate:
+    name: required-checks-contract-gate
     runs-on: ubuntu-latest
 
     steps:
