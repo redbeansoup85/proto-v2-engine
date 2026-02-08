@@ -12,6 +12,8 @@ on:
 
 jobs:
   gate:
+    name: loop-gate
+    name: loop-gate
     runs-on: ubuntu-latest
     env:
       ROOT: ${{ github.event_name == 'workflow_dispatch' && inputs.root_dir || 'tasks' }}
