@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GateFindingsEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "version", "status", "findings"],
+  "properties": {
+    "gate": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^v[0-9]+$" },
+    "status": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Finding" }
+    }
+  },
+  "definitions": {
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "severity", "file", "message"],
+      "properties": {
+        "rule_id": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["ERROR", "WARN", "INFO"] },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "evidence": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
