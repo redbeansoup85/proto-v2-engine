@@ -1,3 +1,6 @@
-STATUS: OPEN
 CREATED_AT_UTC: "2026-02-03T00:00:00Z"
-TASK_ID: "TASK-CORE-LOOP1-v1"
+INTENT: "Define/maintain core loop task tracking under fail-closed loop-gate."
+EXPECTED_OUTCOME: "TASK_LOOP.yaml conforms to required keys; loop-gate passes on CI."
+EXECUTION: "Edit TASK_LOOP.yaml to match required keys; validate via tools/gates/loop_gate.py."
+NEXT_ACTION: "Run loop-gate locally; open PR; ensure CI green; merge."
+RESULT: OPEN
