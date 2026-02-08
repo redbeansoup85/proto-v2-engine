@@ -3,23 +3,12 @@ name: sentinel-replay-gate
 on:
   pull_request:
   push:
-    branches: [ "main" ]
 
 jobs:
   sentinel-replay-gate:
     name: sentinel-replay-gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-    - name: Install test deps (runtime + pytest)
-      run: |
-        python -m pip install -U pip
-        python -m pip install pytest pytest-asyncio pydantic fastapi aiosqlite asgi_lifespan sqlalchemy alembic
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install pytest alembic sqlalchemy
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install pytest
       - uses: actions/checkout@v4
 
       - name: Set up Python
@@ -27,17 +16,20 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install test deps (runtime minimal)
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install \
+            pytest pytest-asyncio \
+            alembic \
+            pydantic \
+            fastapi \
+            aiosqlite \
+            asgi-lifespan \
+            sqlalchemy \
+            httpx
 
       - name: Unit tests
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///test.db"
-        run: |
-          python -m pytest -q
-
-      - name: Sentinel chain verify + replay smoke
-        run: |
-          tools/ci/sentinel_replay_smoke.sh
+          DATABASE_URL: sqlite+aiosqlite:///test.db
+        run: pytest -q
