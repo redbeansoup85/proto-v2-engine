@@ -1,0 +1,1 @@
+{"schema_version": "v1", "event_id": "EVT-0001", "ts": "2026-02-08T00:00:00Z", "judgment_id": "JDG-0001", "approval_record_id": "APR-0001", "execution_run_id": "RUN-0001", "status": "ok", "metrics": {"latency_ms": 123}, "prev_hash": "0", "hash": "d7526b876f5c611dfa2258459bafd7196f9b3b43b2206e0d3e46f367edc17ba0"}

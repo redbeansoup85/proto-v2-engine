@@ -1,0 +1,9 @@
+{
+  "schema": "sentinel_trade_intent.v1",
+  "domain_id": "sentinel.trade",
+  "intent_id": "INTENT-0001",
+  "asset": "BTCUSDT",
+  "side": "LONG",
+  "mode": "DRY_RUN",
+  "notes": "thin slice"
+}
