@@ -1,0 +1,36 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+  auralis-core:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./core:/app
+      - ./seal:/seal
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - LOCK4_POLICY_PATH=/app/policies/LOCK4.yaml
+      - AURALIS_AUDIT_PATH=/app/logs/audit.jsonl
+      - AURALIS_GENESIS_PATH=/seal/GENESIS.yaml
+      - MODEL_MAIN=mistral
+    command: >
+      bash -lc "
+        pip install fastapi uvicorn requests pyyaml &&
+        /app/integrity_gate.sh &&
+        python /app/audit_verify.py &&
+        python /app/policy_verify.py &&
+        uvicorn app:app --host 0.0.0.0 --port 8080
+      "
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ollama
+
+volumes:
+  ollama:

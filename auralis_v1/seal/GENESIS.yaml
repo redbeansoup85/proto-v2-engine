@@ -1,0 +1,11 @@
+auralis_genesis:
+  auralis_version: "1.0.0"
+  created_at_utc: "2026-02-07T23:40:25Z"
+  system_role: "Edge Safety & Decision OS"
+  lock_constitution:
+    name: "LOCK-4"
+    version: "1.0"
+    hash_sha256: "9789188d90c848ad430cdcef7461e273e6ff37d736bf43ba0ec3c37d8e3203e4"
+  cognition_core:
+    model_name: "mistral"
+    model_blobs_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

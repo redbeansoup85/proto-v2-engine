@@ -1,0 +1,31 @@
+version: "LOCK-4"
+default: "DENY"
+
+rules:
+  - id: "no_external_network"
+    deny_patterns:
+      - "curl "
+      - "wget "
+      - "http://"
+      - "https://"
+
+  - id: "no_secrets"
+    deny_patterns:
+      - "API_KEY"
+      - "PRIVATE_KEY"
+      - "SEED_PHRASE"
+      - "MNEMONIC"
+
+  - id: "deny_code_execution"
+    deny_patterns:
+      - "rm -rf"
+      - "sudo "
+      - "chmod "
+      - "mkfs"
+      - "dd if="
+
+  - id: "allowed_actions_only"
+    allow_actions:
+      - "READ_SENSOR"
+      - "WARN"
+      - "LOG_ONLY"
