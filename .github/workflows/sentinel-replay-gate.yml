@@ -13,6 +13,8 @@ jobs:
 
     steps:
       - run: python -m pip install --upgrade pip
+      - run: python -m pip install pytest alembic sqlalchemy
+      - run: python -m pip install --upgrade pip
       - run: python -m pip install pytest
       - uses: actions/checkout@v4
 
