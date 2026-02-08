@@ -77,5 +77,4 @@ jobs:
           python -m tools.gates.lock3_observer_gate \
             --path var/audit/lock3_chain.jsonl \
             --path var/observer/events.jsonl \
-            --path var/replay/packets.jsonl \
             --replay var/replay/packets.jsonl
