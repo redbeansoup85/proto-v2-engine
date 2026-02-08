@@ -210,11 +210,22 @@ def run_observer_gate(
             findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "missing_file", ""))
             return 1, findings
 
+        # Empty replay file is valid (0 packets)
         try:
-            replay_obj = json.loads(replay_path.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
-            findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "json", ""))
+            if replay_path.stat().st_size == 0:
+                replay_obj = []
+            else:
+                replay_obj = None
+        except Exception as exc:  # noqa: BLE001
+            findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "stat", str(exc)))
             return 1, findings
+
+        if replay_obj is None:
+            try:
+                replay_obj = json.loads(replay_path.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                findings.append(Finding("LOCK3_PARSE_ERROR", str(replay_path), 1, "json", str(exc)))
+                return 1, findings
 
         items = replay_obj if isinstance(replay_obj, list) else [replay_obj]
         for idx, item in enumerate(items, start=1):
