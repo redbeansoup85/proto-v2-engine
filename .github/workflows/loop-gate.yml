@@ -110,12 +110,16 @@ jobs:
             echo "- SKIP: scripts/closed_loop_ratio.sh not found" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Enforce PR_REQUEST fields
+      - name: Enforce PR_REQUEST fields (read live PR body)
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          body="$(jq -r .pull_request.body < "$GITHUB_EVENT_PATH")"
+
+          body="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .body)"
           for k in DESIGN_ARTIFACT STAGE WHY_NOW VERIFY BREAK_RISK; do
-            echo "$body" | grep -q "$k:" || { echo "Missing $k in PR body"; exit 1; }
+            echo "$body" | grep -q "^$k:" || { echo "Missing $k in PR body"; exit 1; }
           done
