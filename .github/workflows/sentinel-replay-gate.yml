@@ -6,30 +6,29 @@ on:
 
 jobs:
   sentinel-replay-gate:
-    name: sentinel-replay-gate
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.11.14"
 
-      - name: Install test deps (runtime minimal)
+      - name: Install deps
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install -U pip
+          python -m pip install -e .
           python -m pip install \
             pytest pytest-asyncio \
             alembic \
             pydantic \
             fastapi \
             aiosqlite \
-            asgi-lifespan \
-            sqlalchemy \
-            httpx
+            asgi-lifespan
 
-      - name: Unit tests
+      - name: Run tests
         env:
           DATABASE_URL: sqlite+aiosqlite:///test.db
         run: pytest -q
