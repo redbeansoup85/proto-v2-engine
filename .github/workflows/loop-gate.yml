@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fail-Closed: forbid legacy SCHEMAS/ directory
+      - name: "Fail-Closed: forbid legacy SCHEMAS/ directory"
         shell: bash
         run: |
           set -euo pipefail
