@@ -1,7 +1,10 @@
 import os
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 import asyncio
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy import select, text
@@ -18,6 +21,45 @@ def _utcnow_naive() -> datetime:
     # SQLite: naive utc 통일
     return datetime.utcnow()
 
+
+def _is_truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def resolve_lock4_sig_mode(env: dict[str, str]) -> str:
+    requested = env.get("LOCK4_SIG_MODE", "").strip().lower()
+    promote = _is_truthy(env.get("LOCK4_PROMOTE_ENFORCE"))
+
+    if requested == "enforce" and promote:
+        return "enforce"
+    return "warn"
+
+
+def run_lock4_preflight_or_die(resolved_mode: str, repo_root: Path) -> int:
+    preflight = repo_root / "tools" / "lock4_preflight.py"
+    cmd = [
+        sys.executable,
+        str(preflight),
+        "--mode",
+        resolved_mode,
+        "--verifier",
+    ]
+    result = subprocess.run(  # noqa: S603
+        cmd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined = (result.stdout or "") + (result.stderr or "")
+    if combined.strip():
+        print(combined.rstrip(), file=sys.stderr)
+    if resolved_mode == "enforce" and result.returncode != 0:
+        return result.returncode
+    if resolved_mode == "warn" and result.returncode != 0:
+        print("LOCK4_PREFLIGHT_WARNING: preflight failed in warn mode", file=sys.stderr)
+    return 0
 
 # -----------------------------
 # FAIL-CLOSED DB PRECHECK (LOCK)
@@ -117,6 +159,12 @@ app.include_router(approvals_router)
 
 
 async def _startup():
+    resolved_mode = resolve_lock4_sig_mode(dict(os.environ))
+    print(f"LOCK4_SIG_MODE_RESOLVED={resolved_mode}", file=sys.stderr)
+    preflight_code = run_lock4_preflight_or_die(resolved_mode, Path(__file__).resolve().parents[2])
+    if preflight_code != 0:
+        raise RuntimeError("LOCK4_PREFLIGHT_FAIL_FAST")
+
     # 1) FAIL-CLOSED: DB가 올바른 파일/스키마인지 먼저 검증 (여기서 걸리면 서버 기동 실패)
     await _assert_db_provenance_and_schema()
 
