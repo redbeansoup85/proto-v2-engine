@@ -1,0 +1,48 @@
+name: lock4-enforce-ci
+
+on:
+  pull_request:
+
+jobs:
+  enforce:
+    name: enforce
+    runs-on: ubuntu-latest
+    env:
+      LOCK4_SIG_MODE: "enforce"
+      LOCK4_PROMOTE_ENFORCE: "1"
+      DATABASE_URL: "sqlite+aiosqlite:///test.db"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install ".[test]"
+
+      - name: Run tests (LOCK4 enforce)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+          DB="$PWD/infra/api/test.db"
+          rm -f "$DB"
+          sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
+
+          export DATABASE_URL="sqlite+aiosqlite:///$DB"
+
+          python -m py_compile infra/api/alembic/env.py
+          python -m alembic -c infra/api/alembic.ini -q upgrade head
+
+          python -m pytest -q
