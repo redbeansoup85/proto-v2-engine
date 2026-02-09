@@ -1,11 +1,18 @@
 schema_version: ADAPTER_REGISTRY_V1
-generated_at: "2026-02-07T00:00:00Z"
-
+generated_at: '2026-02-07T00:00:00Z'
 entries:
-  - card_id: "SENTINEL_MARKET_SNAPSHOT_V1"
-    adapter_path: "tools.adapters.sentinel.market_snapshot"
-    approval_mode: "AUTO_ALLOWED"
-    capabilities: ["READ_ONLY", "NETWORK_CALL"]
-    risk_tier: "T1"
-    enabled: true
-    notes: "Read-only market data snapshot; no execution."
+- card_id: SENTINEL_MARKET_SNAPSHOT_V1
+  adapter_path: tools.adapters.sentinel.market_snapshot
+  approval_mode: AUTO_ALLOWED
+  capabilities: &id001
+  - READ_ONLY
+  - NETWORK_CALL
+  risk_tier: T1
+  enabled: true
+  notes: Read-only market data snapshot; no execution.
+- card_id: SENTINEL_DRY_RUN_V1
+  adapter_path: adapters.sentinel.dry_run_adapter
+  approval_mode: AUTO_ALLOWED
+  capabilities: *id001
+  risk_tier: T1
+  enabled: true

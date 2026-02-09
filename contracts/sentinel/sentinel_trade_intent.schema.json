@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SentinelTradeIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "domain_id", "intent_id", "mode", "asset", "side", "notes"],
+  "properties": {
+    "schema": { "const": "sentinel_trade_intent.v1" },
+    "domain_id": { "const": "sentinel.trade" },
+    "intent_id": {
+      "type": "string",
+      "pattern": "^INTENT-[A-Za-z0-9_-]{8,}$"
+    },
+    "mode": { "const": "DRY_RUN" },
+    "asset": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{3,12}$"
+    },
+    "side": {
+      "type": "string",
+      "enum": ["LONG", "SHORT", "FLAT"]
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

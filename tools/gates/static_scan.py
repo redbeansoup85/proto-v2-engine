@@ -60,36 +60,62 @@ def _git_changed_files_from_pr_event() -> list[str]:
         return []
 
 
-def _iter_targets(root: Path) -> list[Path]:
-    if os.getenv("GITHUB_EVENT_NAME") == "pull_request":
-        changed = _git_changed_files_from_pr_event()
-        if not changed:
-            # FAIL-CLOSED: PR인데 변경 파일 판별 불가 → static scan도 차단
-            raise RuntimeError("FAIL-CLOSED: could not determine PR changed files for static scan")
 
-        targets: list[Path] = []
-        for rel in changed:
-            rel_n = rel.replace("\\", "/")
-            if _ignored_relpath(rel_n):
-                continue
-            p = root / rel_n
-            if p.is_file() and p.suffix == ".py" and not _excluded(p):
-                targets.append(p)
-        return targets
+def _walk_tree_targets(root: Path) -> list[Path]:
+    """
+    Full-tree scan target iterator (used for non-PR contexts and for tests tmp_path).
+    Must exclude virtualenv/vendor/cache dirs to avoid false positives + noise.
+    """
+    exclude_dirs = {
+        ".git",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "node_modules",
+        "dist",
+        "build",
+    }
 
     targets: list[Path] = []
-    for p in root.rglob("*.py"):
-        if _excluded(p):
+    for p in root.rglob("*"):
+        # skip directories + excluded trees
+        if p.is_dir():
             continue
-        try:
-            rel = p.relative_to(root).as_posix()
-        except Exception:
-            rel = p.as_posix()
-        if _ignored_relpath(rel):
+        parts = set(p.parts)
+        if parts & exclude_dirs:
             continue
-        targets.append(p)
-    return targets
+        # only scan text-ish files we care about
+        if p.suffix.lower() in {".py", ".yml", ".yaml", ".json", ".md", ".txt"}:
+            targets.append(p)
 
+    # deterministic order
+    return sorted(targets)
+
+def _iter_targets(root: Path) -> list[Path]:
+    workspace = os.getenv("GITHUB_WORKSPACE")
+    is_actions_workspace = False
+
+    if workspace:
+        try:
+            is_actions_workspace = root.resolve() == Path(workspace).resolve()
+        except Exception:
+            is_actions_workspace = False
+
+    # PR 최적화는 실제 GitHub Actions 워크스페이스에서만 허용
+    if os.getenv("GITHUB_EVENT_NAME") == "pull_request" and is_actions_workspace:
+        changed = _git_changed_files_from_pr_event()
+        if not changed:
+            # FAIL-CLOSED 유지
+            raise RuntimeError(
+                "FAIL-CLOSED: could not determine PR changed files for static scan"
+            )
+        return [root / p for p in changed if (root / p).exists()]
+
+    # 그 외(테스트 tmp_path 포함): 전체 트리 스캔
+    return _walk_tree_targets(root)
 
 def scan_tree(root: Path) -> list[Finding]:
     targets = _iter_targets(root)

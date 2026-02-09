@@ -1,0 +1,4 @@
+{"domain_id":"sentinel.trade","intent_id":"INTENT-BA57ADAE98","judgment_id":"JEVT-499ACD5EBA","mode":"DRY_RUN","reason":"connected_to_sentinel_pipeline","schema":"judgment_event.v1","status":"ACCEPTED","ts_utc":"2026-02-08T08:48:34Z"}
+{"domain_id":"sentinel.trade","intent_id":"INTENT-00000001","judgment_id":"JEVT-0D4A744C3D","mode":"DRY_RUN","reason":"connected_to_sentinel_pipeline","schema":"judgment_event.v1","status":"ACCEPTED","ts_utc":"2026-02-08T08:49:37Z"}
+{"domain_id":"sentinel.trade","intent_id":"INTENT-SHORT-SOLUSDT","judgment_id":"JEVT-6D8633F3EE","mode":"DRY_RUN","reason":"connected_to_sentinel_pipeline","schema":"judgment_event.v1","status":"ACCEPTED","ts_utc":"2026-02-08T08:53:00Z"}
+{"domain_id":"sentinel.trade","intent_id":"INTENT-E333C9246F","judgment_id":"JEVT-425AC696B7","mode":"DRY_RUN","reason":"connected_to_sentinel_pipeline","schema":"judgment_event.v1","status":"ACCEPTED","ts_utc":"2026-02-08T08:54:53Z"}
