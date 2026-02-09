@@ -19,7 +19,7 @@ from infra.api.endpoints.schemas.execution import (
     ExecutionRunDetailResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/execution", tags=["execution"])
 
 def _utcnow() -> datetime:
     # keep naive utc for SQLite consistency
