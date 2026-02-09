@@ -1,4 +1,4 @@
-# gatekit_template: push-paths-gate
+# gatekit_template: pr-paths-gate
 name: lock2-gate
 
 on:

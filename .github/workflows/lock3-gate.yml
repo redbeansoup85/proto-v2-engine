@@ -1,4 +1,4 @@
-# gatekit_template: dispatch-gate
+# gatekit_template: pr-paths-gate
 name: lock3-gate
 
 on:
