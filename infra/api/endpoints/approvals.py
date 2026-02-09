@@ -15,7 +15,7 @@ from infra.api.endpoints.models.approval import Approval
 from infra.api.endpoints.models.approval_decision_event import ApprovalDecisionEvent
 from infra.api.endpoints.models.execution_run import ExecutionRun
 
-router = APIRouter(tags=["approvals"])
+router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
 def _utcnow() -> datetime:
@@ -106,7 +106,7 @@ async def _mark_expired(session: AsyncSession, *, execution_id: str, appr: Appro
     await session.commit()
 
 
-@router.post("/approvals/{execution_id}/approve")
+@router.post("/{execution_id}/approve")
 async def approve(
     execution_id: str,
     session: AsyncSession = Depends(get_session),
@@ -181,7 +181,7 @@ async def approve(
     return {"ok": True, "execution_id": execution_id, "approval_status": appr.status, "run_status": run.status}
 
 
-@router.post("/approvals/{execution_id}/reject")
+@router.post("/{execution_id}/reject")
 async def reject(
     execution_id: str,
     session: AsyncSession = Depends(get_session),

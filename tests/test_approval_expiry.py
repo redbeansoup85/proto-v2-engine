@@ -57,7 +57,7 @@ async def test_approve_denied_when_expired_marks_db_state():
             )
 
             # 3) approve -> 409 approval_expired
-            r2 = await client.post(f"/approvals/{exec_id}/approve")
+            r2 = await client.post(f"/api/v1/approvals/{exec_id}/approve")
             assert r2.status_code == 409
             assert r2.json()["detail"] == "approval_expired"
 
