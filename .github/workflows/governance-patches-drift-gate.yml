@@ -1,3 +1,4 @@
+# gatekit_template: pr-paths-gate
 name: Governance Patches Drift Gate
 
 on:
@@ -5,6 +6,10 @@ on:
     paths:
       - "docs/governance/patches/**"
       - "tools/update_governance_patches_index.py"
+
+
+permissions:
+  contents: read
 
 jobs:
   governance_patches_drift_gate:

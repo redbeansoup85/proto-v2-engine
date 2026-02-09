@@ -1,3 +1,4 @@
+# gatekit_template: pr-paths-gate
 name: public-docs-gate
 
 on:
@@ -8,6 +9,10 @@ on:
       - "tests/tools/test_public_docs_gate.py"
       - ".github/workflows/public-docs-gate.yml"
       - ".github/CODEOWNERS"
+
+
+permissions:
+  contents: read
 
 jobs:
   public-docs-gate:

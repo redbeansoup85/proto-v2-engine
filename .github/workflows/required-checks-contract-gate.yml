@@ -1,3 +1,4 @@
+# gatekit_template: push-paths-gate
 name: required-checks-contract-gate
 
 on:
