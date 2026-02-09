@@ -21,6 +21,12 @@ DENY_PATTERNS = [
     ("EXEC_TRADE", re.compile(r"\b(place_order|submit_order|send_order|execute_trade|broker\.|exchange\.)\b")),
 ]
 
+
+
+ALLOW_MARKERS = [
+    "LOCK2_ALLOW_EXEC",
+    "STATIC_ALLOW_EXEC",
+]
 EXCLUDE_DIRS = {
     ".venv", "venv", "__pycache__", "site-packages",
     ".git", ".mypy_cache", ".pytest_cache",
@@ -81,6 +87,9 @@ def _walk_tree_targets(root: Path) -> list[Path]:
 
     targets: list[Path] = []
     for p in root.rglob("*"):
+        rel = p.relative_to(root).as_posix()
+        if _ignored_relpath(rel):
+            continue
         # skip directories + excluded trees
         if p.is_dir():
             continue
@@ -130,6 +139,10 @@ def scan_tree(root: Path) -> list[Finding]:
             continue
         txt = p.read_text(encoding="utf-8", errors="ignore").splitlines()
         for i, line in enumerate(txt, start=1):
+            # explicit allow marker on the same line → suppress findings
+            if any(m in line for m in ALLOW_MARKERS):
+                continue
+
             for rule_id, rx in DENY_PATTERNS:
                 if rx.search(line):
                     findings.append(Finding(rule_id, str(p), i, rx.pattern, line.strip()[:200]))

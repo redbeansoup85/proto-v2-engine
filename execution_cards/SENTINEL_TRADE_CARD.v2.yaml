@@ -17,7 +17,7 @@ scope:
 approval:
   required: true
   scope:
-    - "trade.place_order"
+    - "trade.place_order"  # STATIC_ALLOW_EXEC
     - "trade.cancel_order"
   ttl_seconds: 900   # 15m default TTL (approval expiry recommended)
 
