@@ -1,0 +1,4 @@
+[submodule "vendor/gatekit"]
+	path = vendor/gatekit
+	url = https://github.com/redbeansoup85/meta-os-gatekit.git
+	branch = main
