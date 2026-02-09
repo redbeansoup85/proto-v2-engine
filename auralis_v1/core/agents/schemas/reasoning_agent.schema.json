@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReasoningAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "explanation",
+    "reasoning_steps"
+  ],
+  "properties": {
+    "explanation": { "type": "string" },
+    "reasoning_steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

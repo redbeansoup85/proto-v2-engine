@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DesignAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blueprint_sections",
+    "schema_artifacts",
+    "constraints"
+  ],
+  "properties": {
+    "blueprint_sections": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "schema_artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
