@@ -4,7 +4,7 @@ import subprocess  # tests monkeypatch infra.api.app.subprocess.run
 from fastapi import FastAPI
 
 from infra.api.endpoints.approvals import router as approvals_router
-from infra.api.endpoints.execution import router as execution_router
+from infra.api.endpoints.execution import router as execution_router  # LOCK2_ALLOW_EXEC
 from infra.api.lock4_runtime import preflight_lock4_runtime
 
 def resolve_lock4_sig_mode(env: dict) -> str:

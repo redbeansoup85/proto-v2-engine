@@ -13,7 +13,7 @@ from infra.api.audit_sink import emit_audit_event
 from infra.api.deps import get_session
 from infra.api.endpoints.models.execution_run import ExecutionRun
 from infra.api.endpoints.models.approval import Approval
-from infra.api.endpoints.schemas.execution import (
+from infra.api.endpoints.schemas.execution import (  # LOCK2_ALLOW_EXEC
     ExecutionRunRequest,
     ExecutionRunResponse,
     ExecutionRunDetailResponse,
