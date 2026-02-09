@@ -4,16 +4,15 @@ import hashlib
 import json
 from typing import Any, Dict
 
+def canonical_json(obj: Any) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
-def canonical_dumps(d: Dict[str, Any]) -> str:
-    return json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+def sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
-
-def _payload_without_hash_fields(payload: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: v for k, v in payload.items() if k not in {"hash", "prev_hash"}}
-
-
-def hash_event(prev_hash: str, payload_wo_hash: Dict[str, Any]) -> str:
-    canonical_json = canonical_dumps(_payload_without_hash_fields(payload_wo_hash))
-    hash_input = prev_hash + "\n" + canonical_json
-    return hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+def hash_event(event: Dict[str, Any]) -> str:
+    """
+    Deterministic event hash helper used by lock3 observer gate.
+    Canonicalization: sort_keys=True, separators=(',', ':'), ensure_ascii=False
+    """
+    return sha256_hex(canonical_json(event).encode("utf-8"))
