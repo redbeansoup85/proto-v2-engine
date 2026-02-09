@@ -5,6 +5,7 @@ on:
 
 jobs:
   enforce:
+    name: enforce
     runs-on: ubuntu-latest
     env:
       LOCK4_SIG_MODE: "enforce"
