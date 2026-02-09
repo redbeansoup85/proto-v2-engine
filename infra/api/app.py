@@ -5,7 +5,25 @@ from fastapi import FastAPI
 
 from infra.api.endpoints.approvals import router as approvals_router
 from infra.api.endpoints.execution import router as execution_router
-from infra.api.lock4_runtime import preflight_lock4_runtime, resolve_lock4_sig_mode
+from infra.api.lock4_runtime import preflight_lock4_runtime
+
+def resolve_lock4_sig_mode(env: dict) -> str:
+    """Resolve LOCK4 signature mode from provided env mapping ONLY.
+
+    Must not implicitly read os.environ because CI workflows set LOCK4_SIG_MODE
+    for the process and tests pass {} to validate deterministic defaults.
+    """
+    e = env or {}
+    raw = (e.get("LOCK4_SIG_MODE", "") or "").strip().lower()
+
+    if raw == "enforce":
+        promote = (e.get("LOCK4_PROMOTE_ENFORCE", "") or "")
+        if str(promote).strip().lower() in ("1", "true", "yes", "on"):
+            return "enforce"
+        return "warn"
+
+    return "warn"
+
 
 
 def create_app() -> FastAPI:
