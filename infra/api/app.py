@@ -12,7 +12,6 @@ from sqlalchemy import select, text
 # LOCK2: execution API is disabled by default (fail-closed). Enable explicitly via EXECUTION_API_ENABLE=1.
 execution_router = None
 if os.environ.get("EXECUTION_API_ENABLE","").strip().lower() in ("1","true","yes","on"):
-    from infra.api.endpoints.execution import router as execution_router
 from infra.api.endpoints.approvals import router as approvals_router
 
 from infra.api.deps import AsyncSessionLocal
@@ -160,7 +159,6 @@ app = FastAPI(title="Proto V2 Engine API", lifespan=lifespan)
 
 
 if execution_router is not None:
-    app.include_router(execution_router, prefix="/api/v1/execution")
 app.include_router(approvals_router)
 
 
