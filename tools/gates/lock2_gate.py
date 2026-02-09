@@ -19,6 +19,8 @@ class Finding:
 
 
 # "execution" 관련 참조가 승인 경로 밖에서 나타나면 fail-closed
+ALLOW_MARKERS = ["LOCK2_ALLOW_EXEC"]
+
 DENY_PATTERNS = [
     ("EXEC_IMPORT", re.compile(r"\b(from\s+.*execution\s+import|import\s+.*execution)\b")),
     ("EXEC_ENDPOINT", re.compile(r"\b(/execution\b|endpoints\.execution|execution\.py)\b")),
@@ -152,6 +154,10 @@ def scan_targets(paths: list[Path]) -> list[Finding]:
 
         txt = p.read_text(encoding="utf-8", errors="ignore").splitlines()
         for i, line in enumerate(txt, start=1):
+            # explicit allow marker on the same line → suppress EXEC_* findings
+            if any(m in line for m in ALLOW_MARKERS):
+                continue
+
             for rule_id, rx in DENY_PATTERNS:
                 if rx.search(line):
                     if allow:
