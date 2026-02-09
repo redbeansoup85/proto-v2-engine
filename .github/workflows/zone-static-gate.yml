@@ -1,16 +1,40 @@
+# gatekit_template: pr-paths-gate
 name: zone-static-gate
 
 on:
   pull_request:
-  push:
-    branches: [ main ]
+    paths:
+      - "__PATH__"
+
+permissions:
+  contents: read
 
 jobs:
-  zone-static-gate:
-    name: zone-static-gate
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Run Zone Static Gate (fail-closed)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install gate deps
         run: |
-          python tools/gates/zone_static_gate.py --root .
+          python -m pip install --upgrade pip
+          python -m pip install -r vendor/gatekit/requirements-gates.txt
+
+      - name: Gate template drift check
+        run: |
+          python vendor/gatekit/tools/gates/gate_template_drift_gate.py \
+            --templates-dir vendor/gatekit/ci/gate-template \
+            --instances-glob ".github/workflows/*-gate.yml" \
+            --require-instances \
+            --require-template-tag
+

@@ -1,32 +1,40 @@
+# gatekit_template: pr-paths-gate
 name: adapter-registry-gate
 
 on:
-  push:
   pull_request:
+    paths:
+      - "__PATH__"
+
+permissions:
+  contents: read
 
 jobs:
-  adapter_registry_gate:
-    name: adapter-registry-gate
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install gate deps
-        shell: bash
         run: |
-          set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install ".[test]"
+          python -m pip install -r vendor/gatekit/requirements-gates.txt
 
-      - name: Run adapter registry gate (fail-closed)
-        shell: bash
+      - name: Gate template drift check
         run: |
-          set -euo pipefail
-          python tools/gates/adapter_registry_gate.py
+          python vendor/gatekit/tools/gates/gate_template_drift_gate.py \
+            --templates-dir vendor/gatekit/ci/gate-template \
+            --instances-glob ".github/workflows/*-gate.yml" \
+            --require-instances \
+            --require-template-tag
+

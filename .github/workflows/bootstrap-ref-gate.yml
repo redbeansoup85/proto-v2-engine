@@ -1,24 +1,40 @@
+# gatekit_template: pr-paths-gate
 name: bootstrap-ref-gate
 
 on:
-  push:
   pull_request:
+    paths:
+      - "__PATH__"
+
+permissions:
+  contents: read
 
 jobs:
-  bootstrap-ref-gate:
-
-    name: bootstrap-ref-gate
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Run bootstrap reference gate (fail-closed)
-        shell: bash
+      - name: Install gate deps
         run: |
-          set -euo pipefail
-          python tools/gates/bootstrap_ref_gate.py --root ./
+          python -m pip install --upgrade pip
+          python -m pip install -r vendor/gatekit/requirements-gates.txt
+
+      - name: Gate template drift check
+        run: |
+          python vendor/gatekit/tools/gates/gate_template_drift_gate.py \
+            --templates-dir vendor/gatekit/ci/gate-template \
+            --instances-glob ".github/workflows/*-gate.yml" \
+            --require-instances \
+            --require-template-tag
+
