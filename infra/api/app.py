@@ -1,7 +1,11 @@
+from __future__ import annotations
+
+import subprocess  # tests monkeypatch infra.api.app.subprocess.run
 from fastapi import FastAPI
 
 from infra.api.endpoints.approvals import router as approvals_router
 from infra.api.endpoints.execution import router as execution_router
+from infra.api.lock4_runtime import preflight_lock4_runtime, resolve_lock4_sig_mode
 
 
 def create_app() -> FastAPI:
@@ -13,5 +17,26 @@ def create_app() -> FastAPI:
 
     return app
 
+
+
+def run_lock4_preflight_or_die(mode: str, workspace_dir) -> int:
+    """Run LOCK4 preflight via subprocess.
+
+    Test contract:
+      - mode == "enforce": return subprocess returncode (non-zero allowed)
+      - mode == "warn": always return 0 (never block startup)
+    """
+    wd = str(workspace_dir)
+
+    proc = subprocess.run(
+        ["python", "-m", "tools.gates.lock4_preflight", "--workspace", wd],
+        capture_output=True,
+        text=True,
+    )
+    rc = int(getattr(proc, "returncode", 1) or 0)
+
+    if mode == "warn":
+        return 0
+    return rc
 
 app = create_app()
