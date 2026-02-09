@@ -54,6 +54,4 @@ jobs:
       # 파일명/경로는 실제 테스트 파일에 맞춰 조정
       - name: Run gate-only tests
         run: |
-          pytest -q \
-            tests/tools/test_static_scan.py \
-            tests/tools/test_adapter_registry_gate.py
+          pytest -q tests/gates
