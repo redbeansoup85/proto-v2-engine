@@ -5,8 +5,9 @@ on:
     paths:
       - "tools/gates/**"
       - "tests/gates/**"
-      - "contracts/**"
+      - "adapters/**"
       - "adapter_registry/**"
+      - "contracts/**"
       - ".github/workflows/__GATE_FILE__"
 
 permissions:
@@ -35,7 +36,7 @@ jobs:
         run: |
           python tools/gates/gate_template_drift_gate.py \
             --template ci/gate-template/sentinel-gate.yml \
-            --instance .github/workflows/sentinel-replay-gate.yml
+            --instance .github/workflows/__GATE_FILE__
 
       - name: Run static_scan gate
         run: |

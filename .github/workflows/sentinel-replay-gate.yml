@@ -4,14 +4,7 @@ on:
   pull_request:
     paths:
       - "tools/gates/**"
-      - "adapters/**"
-      - "adapter_registry/**"
-      - "contracts/**"
-      - ".github/workflows/sentinel-replay-gate.yml"
-  push:
-    branches: [ "main" ]
-    paths:
-      - "tools/gates/**"
+      - "tests/gates/**"
       - "adapters/**"
       - "adapter_registry/**"
       - "contracts/**"
@@ -34,21 +27,18 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 게이트는 런타임 deps에 끌려다니지 않게 "게이트 최소 deps"만 설치
-      # (requirements-gates.txt가 있으면 그걸로, 없으면 아래처럼 pytest만)
-      - name: Install minimal deps
+      - name: Install gate deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install -r requirements-gates.txt
 
-      # 1) 게이트 실행 (게이트만)
-     - name: Gate template drift check
+      - name: Gate template drift check
         run: |
           python tools/gates/gate_template_drift_gate.py \
             --template ci/gate-template/sentinel-gate.yml \
             --instance .github/workflows/sentinel-replay-gate.yml
 
- - name: Run static_scan gate
+      - name: Run static_scan gate
         run: |
           python tools/gates/static_scan.py
 
@@ -56,8 +46,6 @@ jobs:
         run: |
           python tools/gates/adapter_registry_gate.py
 
-      # 2) 게이트 전용 테스트만 선택 실행
-      # 파일명/경로는 실제 테스트 파일에 맞춰 조정
       - name: Run gate-only tests
         run: |
           pytest -q tests/gates

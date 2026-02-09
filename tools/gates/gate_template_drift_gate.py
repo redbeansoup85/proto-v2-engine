@@ -2,60 +2,76 @@
 """
 Fail-closed gate: ensure workflow instances are structurally identical to canonical gate template.
 
-Allowed substitutions:
-- name: <anything>
-- .github/workflows/<file>.yml path entry inside on.pull_request.paths (or other on.*.paths)
+Normalization:
+- Ignore blank lines and full-line comments.
+- Normalize `name:` to `name: __GATE_NAME__`
+- Normalize gate file placeholder <-> actual filename to `__GATE_FILE__` everywhere.
+Outputs:
+- OK lines for matches
+- FAIL as JSONL (WHY_FAIL_LOG-compatible) for drift/missing
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import sys
 from pathlib import Path
 from typing import Iterable, Tuple, List
 
+RULE_DRIFT = "GATE_TEMPLATE_DRIFT"
+RULE_MISSING = "GATE_TEMPLATE_MISSING"
+
 RE_NAME = re.compile(r'^\s*name\s*:\s*.+\s*$')
 RE_COMMENT = re.compile(r'^\s*#.*$')
 RE_EMPTY = re.compile(r'^\s*$')
+
+def emit_fail(payload: dict) -> None:
+    # Single-line JSON for CI log parsing
+    sys.stderr.write("WHY_FAIL_LOG " + json.dumps(payload, ensure_ascii=False) + "\n")
 
 def read_lines(p: Path) -> List[str]:
     try:
         return p.read_text(encoding="utf-8").splitlines(keepends=False)
     except FileNotFoundError:
-        print(f"FAIL GATE_TEMPLATE_MISSING file={p}", file=sys.stderr)
+        emit_fail({
+            "rule_id": RULE_MISSING,
+            "file": str(p),
+            "line": 0,
+            "expected": "file exists",
+            "got": "FileNotFoundError",
+            "hint": "Remove missing instance from --instance list, or add the workflow file to this repo.",
+        })
         sys.exit(2)
 
-def normalize_template(lines: Iterable[str]) -> List[str]:
+def normalize_common(lines: Iterable[str]) -> List[str]:
     out: List[str] = []
     for ln in lines:
-        # keep comments to be strict? -> we ignore pure comment lines for stability.
-        if RE_COMMENT.match(ln):
+        if RE_COMMENT.match(ln) or RE_EMPTY.match(ln):
             continue
-        if RE_EMPTY.match(ln):
-            continue
-        out.append(ln.rstrip())
-    return out
-
-def normalize_instance(lines: Iterable[str], gate_file: str) -> List[str]:
-    out: List[str] = []
-    for ln in lines:
-        if RE_COMMENT.match(ln):
-            continue
-        if RE_EMPTY.match(ln):
-            continue
-
-        # Allow any workflow name
+        # Normalize workflow name
         if RE_NAME.match(ln):
             out.append("name: __GATE_NAME__")
-            continue
+        else:
+            out.append(ln.rstrip())
+    return out
 
-        # Allow the workflow file self-reference under paths (common patterns)
-        # Replace exact occurrences of the gate file with __GATE_FILE__
-        # (We do not allow other path changes.)
-        ln2 = ln.replace(gate_file, "__GATE_FILE__")
+def normalize_gate_file_tokens(lines: Iterable[str], gate_file: str) -> List[str]:
+    """
+    Normalize both:
+    - actual filename -> __GATE_FILE__
+    - __GATE_FILE__  -> __GATE_FILE__ (stable)
+
+    Implementation: temporarily expand placeholder to actual filename, then collapse back.
+    This makes comparisons stable regardless of which form appears.
+    """
+    out: List[str] = []
+    for ln in lines:
+        ln_norm = ln.replace("__GATE_FILE__", gate_file)
+        ln2 = ln_norm.replace(gate_file, "__GATE_FILE__")
         out.append(ln2.rstrip())
     return out
 
@@ -88,28 +104,39 @@ def main() -> None:
     root = Path(args.root).resolve()
     template_path = (root / args.template).resolve()
 
-    tmpl_lines = normalize_template(read_lines(template_path))
-    tmpl_hash = sha256_lines(tmpl_lines)
+    tmpl_raw = read_lines(template_path)
+    tmpl_lines = normalize_common(tmpl_raw)
+    # Template also gets normalized gate-file tokens using the *instance* filename at compare time.
 
     failures = 0
 
     for inst in args.instance:
         inst_path = (root / inst).resolve()
         gate_file = os.path.basename(str(inst_path))
-        inst_lines_raw = read_lines(inst_path)
-        inst_lines = normalize_instance(inst_lines_raw, gate_file=gate_file)
+
+        inst_raw = read_lines(inst_path)
+        inst_lines = normalize_gate_file_tokens(normalize_common(inst_raw), gate_file=gate_file)
+
+        tmpl_for_this = normalize_gate_file_tokens(tmpl_lines, gate_file=gate_file)
+
+        tmpl_hash = sha256_lines(tmpl_for_this)
         inst_hash = sha256_lines(inst_lines)
 
         if inst_hash != tmpl_hash:
             failures += 1
-            idx, a_ln, b_ln = first_diff(tmpl_lines, inst_lines)
-            print(
-                "FAIL GATE_TEMPLATE_DRIFT "
-                f"instance={inst} template={args.template} "
-                f"template_sha256={tmpl_hash} instance_sha256={inst_hash} "
-                f"diff_line={idx+1} expected={repr(a_ln)} got={repr(b_ln)}",
-                file=sys.stderr,
-            )
+            idx, expected, got = first_diff(tmpl_for_this, inst_lines)
+
+            emit_fail({
+                "rule_id": RULE_DRIFT,
+                "file": inst,
+                "line": (idx + 1) if idx >= 0 else 0,
+                "expected": expected,
+                "got": got,
+                "template": args.template,
+                "template_sha256": tmpl_hash,
+                "instance_sha256": inst_hash,
+                "hint": "Workflow instance must match canonical template after normalization (name + __GATE_FILE__).",
+            })
         else:
             print(f"OK GATE_TEMPLATE_MATCH instance={inst}")
 
