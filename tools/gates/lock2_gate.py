@@ -71,6 +71,18 @@ def _git_changed_files_from_pr_event() -> list[str]:
         return []
 
 
+def _git_changed_files_fallback() -> list[str]:
+    """
+    Best-effort fallback for CI environments where PR event payload
+    is unavailable or missing base/head fields.
+    """
+    try:
+        out = subprocess.check_output(["git", "diff", "--name-only", "origin/main...HEAD"], text=True)
+        return [x.strip() for x in out.splitlines() if x.strip()]
+    except Exception:
+        return []
+
+
 def _git_changed_files_from_push_event() -> list[str]:
     event_path = os.getenv("GITHUB_EVENT_PATH", "")
     if not event_path:
@@ -94,6 +106,8 @@ def iter_scan_targets(root: Path) -> list[Path]:
     if os.getenv("GITHUB_ACTIONS") == "true" and os.getenv("GITHUB_EVENT_NAME") in {"pull_request", "push"}:
         ev = os.getenv("GITHUB_EVENT_NAME")
         changed = _git_changed_files_from_pr_event() if ev == "pull_request" else _git_changed_files_from_push_event()
+        if ev == "pull_request" and not changed:
+            changed = _git_changed_files_fallback()
 
         # FAIL-CLOSED: CI 이벤트인데 변경 파일을 못 읽으면 차단
         if not changed:
