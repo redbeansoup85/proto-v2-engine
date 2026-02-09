@@ -126,6 +126,8 @@ def scan_tree(root: Path) -> list[Finding]:
 
     findings: list[Finding] = []
     for p in targets:
+if not p.is_file():
+    continue
         txt = p.read_text(encoding="utf-8", errors="ignore").splitlines()
         for i, line in enumerate(txt, start=1):
             for rule_id, rx in DENY_PATTERNS:
