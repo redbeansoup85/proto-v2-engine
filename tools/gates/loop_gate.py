@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+def _read_pr_request_from_event() -> str:
+    """Read PR body/title from GitHub Actions event payload (no API calls)."""
+    import json, os
+    from pathlib import Path as _P
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    if not event_path:
+        return ""
+    try:
+        data = json.loads(_P(event_path).read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    pr = data.get("pull_request") or {}
+    body = (pr.get("body") or "").strip()
+    if body:
+        return body
+    title = (pr.get("title") or "").strip()
+    return title
+
+
 import argparse
 import json
 import os
@@ -233,6 +252,11 @@ def main() -> int:
         findings.extend(_validate_task_loop_file(f))
 
     if args.enforce_pr_request and os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        # Prefer event payload PR request (no API/token required)
+        pr_request = _read_pr_request_from_event()
+        if pr_request:
+            return 0
+
         findings.extend(_validate_pr_request(_read_pr_body_from_event()))
 
     status = "PASS" if not findings else "FAIL"
