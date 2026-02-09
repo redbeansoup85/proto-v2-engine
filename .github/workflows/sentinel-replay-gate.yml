@@ -4,12 +4,7 @@ name: sentinel-replay-gate
 on:
   pull_request:
     paths:
-      - "tools/gates/**"
-      - "tests/gates/**"
-      - "adapters/**"
-      - "adapter_registry/**"
-      - "contracts/**"
-      - ".github/workflows/sentinel-replay-gate.yml"
+      - "__PATH__"
 
 permissions:
   contents: read
