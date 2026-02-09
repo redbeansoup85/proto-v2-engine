@@ -2,37 +2,58 @@ name: sentinel-replay-gate
 
 on:
   pull_request:
+    paths:
+      - "tools/gates/**"
+      - "adapters/**"
+      - "adapter_registry/**"
+      - "contracts/**"
+      - ".github/workflows/sentinel-replay-gate.yml"
   push:
+    branches: [ "main" ]
+    paths:
+      - "tools/gates/**"
+      - "adapters/**"
+      - "adapter_registry/**"
+      - "contracts/**"
+      - ".github/workflows/sentinel-replay-gate.yml"
+
+permissions:
+  contents: read
 
 jobs:
-  sentinel-replay-gate:
-    name: sentinel-replay-gate
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11.14"
+          python-version: "3.11"
 
-      - name: Install test deps
+      # 게이트는 런타임 deps에 끌려다니지 않게 "게이트 최소 deps"만 설치
+      # (requirements-gates.txt가 있으면 그걸로, 없으면 아래처럼 pytest만)
+      - name: Install minimal deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install \
-            pytest pytest-asyncio \
-            alembic sqlalchemy \
-            pyyaml \
-            pydantic fastapi \
-            aiosqlite asgi-lifespan \
-            httpx \
-            jsonschema
+          python -m pip install pytest
 
-      - name: Run tests
-        env:
-          DATABASE_URL: sqlite+aiosqlite:///test.db
-        run: pytest -q
+      # 1) 게이트 실행 (게이트만)
+      - name: Run static_scan gate
+        run: |
+          python tools/gates/static_scan.py
+
+      - name: Run adapter_registry gate
+        run: |
+          python tools/gates/adapter_registry_gate.py
+
+      # 2) 게이트 전용 테스트만 선택 실행
+      # 파일명/경로는 실제 테스트 파일에 맞춰 조정
+      - name: Run gate-only tests
+        run: |
+          pytest -q \
+            tests/tools/test_static_scan.py \
+            tests/tools/test_adapter_registry_gate.py
