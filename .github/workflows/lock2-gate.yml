@@ -48,3 +48,5 @@ jobs:
           set -euo pipefail
           python -c "from pathlib import Path; from tools.gates.static_scan import scan_tree; f=scan_tree(Path('.')); \
           (print('FAIL-CLOSED: static scan findings detected') or [print(f'- {x.rule_id} | {x.file}:{x.line} | {x.snippet}') for x in f] or exit(1)) if f else print('OK: static scan clean')"
+
+# touch: retrigger checks
