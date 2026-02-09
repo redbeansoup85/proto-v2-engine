@@ -1,4 +1,8 @@
 CI 재실행 런북 (LOCK-safe)
+로컬 pytest 실행(LOCK): `DATABASE_URL="sqlite+aiosqlite:///test.db" pytest -q`
+실수 방지 래퍼: `tools/local/run_pytest.sh -q`
+`DATABASE_URL`이 비었거나 `test.db`가 아니면 conftest가 FAIL-CLOSED로 종료한다.
+이 동작은 의도된 보호장치이며 완화하지 않는다.
 
 적용 범위: PR checks, governance gates, ruleset-aware workflows
 목적: PR 본문/권한 변경이 자동 반영되지 않을 때, 안전하게 CI를 복구
@@ -95,7 +99,9 @@ YES → gate 로직 또는 ruleset 자체 점검
 
 PR body 변경 → rerun → gate 통과
 
-동일 증상 재발 시 추론 없이 즉시 복구 가능## POSTMORTEM-lite: CI main-green recovery (LOCKED)
+동일 증상 재발 시 추론 없이 즉시 복구 가능
+
+## POSTMORTEM-lite: CI main-green recovery (LOCKED)
 
 - **Incident**: main push CI failures caused by legacy workflow loading error and prior governance-docs merge with invalid token.
 - **Root Causes**:
