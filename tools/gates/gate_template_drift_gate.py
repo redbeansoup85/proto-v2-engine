@@ -30,7 +30,6 @@ RE_COMMENT = re.compile(r'^\s*#.*$')
 RE_EMPTY = re.compile(r'^\s*$')
 
 def emit_fail(payload: dict) -> None:
-    # Single-line JSON for CI log parsing
     sys.stderr.write("WHY_FAIL_LOG " + json.dumps(payload, ensure_ascii=False) + "\n")
 
 def read_lines(p: Path) -> List[str]:
@@ -52,7 +51,6 @@ def normalize_common(lines: Iterable[str]) -> List[str]:
     for ln in lines:
         if RE_COMMENT.match(ln) or RE_EMPTY.match(ln):
             continue
-        # Normalize workflow name
         if RE_NAME.match(ln):
             out.append("name: __GATE_NAME__")
         else:
@@ -60,14 +58,6 @@ def normalize_common(lines: Iterable[str]) -> List[str]:
     return out
 
 def normalize_gate_file_tokens(lines: Iterable[str], gate_file: str) -> List[str]:
-    """
-    Normalize both:
-    - actual filename -> __GATE_FILE__
-    - __GATE_FILE__  -> __GATE_FILE__ (stable)
-
-    Implementation: temporarily expand placeholder to actual filename, then collapse back.
-    This makes comparisons stable regardless of which form appears.
-    """
     out: List[str] = []
     for ln in lines:
         ln_norm = ln.replace("__GATE_FILE__", gate_file)
@@ -105,8 +95,7 @@ def main() -> None:
     template_path = (root / args.template).resolve()
 
     tmpl_raw = read_lines(template_path)
-    tmpl_lines = normalize_common(tmpl_raw)
-    # Template also gets normalized gate-file tokens using the *instance* filename at compare time.
+    tmpl_lines_base = normalize_common(tmpl_raw)
 
     failures = 0
 
@@ -117,7 +106,7 @@ def main() -> None:
         inst_raw = read_lines(inst_path)
         inst_lines = normalize_gate_file_tokens(normalize_common(inst_raw), gate_file=gate_file)
 
-        tmpl_for_this = normalize_gate_file_tokens(tmpl_lines, gate_file=gate_file)
+        tmpl_for_this = normalize_gate_file_tokens(tmpl_lines_base, gate_file=gate_file)
 
         tmpl_hash = sha256_lines(tmpl_for_this)
         inst_hash = sha256_lines(inst_lines)
@@ -125,7 +114,6 @@ def main() -> None:
         if inst_hash != tmpl_hash:
             failures += 1
             idx, expected, got = first_diff(tmpl_for_this, inst_lines)
-
             emit_fail({
                 "rule_id": RULE_DRIFT,
                 "file": inst,
