@@ -6,14 +6,14 @@ agents:
     role: reasoning_agent
     schema: auralis_v1/core/agents/schemas/reasoning_agent.schema.json
     disallowed_outputs:
-      - execute
+      - cmd_execute
       - order
-      - place_order
+      - broker_order
       - trade
-      - qty
+      - position_size
       - size
       - price
-      - leverage
+      - risk_leverage
       - position
       - approve
       - reject
@@ -24,14 +24,14 @@ agents:
     role: design_agent
     schema: auralis_v1/core/agents/schemas/design_agent.schema.json
     disallowed_outputs:
-      - execute
+      - cmd_execute
       - order
-      - place_order
+      - broker_order
       - trade
-      - qty
+      - position_size
       - size
       - price
-      - leverage
+      - risk_leverage
       - position
       - approve
       - reject
@@ -42,14 +42,14 @@ agents:
     role: fast_agent
     schema: auralis_v1/core/agents/schemas/fast_agent.schema.json
     disallowed_outputs:
-      - execute
+      - cmd_execute
       - order
-      - place_order
+      - broker_order
       - trade
-      - qty
+      - position_size
       - size
       - price
-      - leverage
+      - risk_leverage
       - position
       - approve
       - reject

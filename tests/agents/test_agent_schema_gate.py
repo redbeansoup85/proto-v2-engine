@@ -20,9 +20,9 @@ def test_forbidden_key_fails() -> None:
         "summary": "x",
         "normalized_text": "y",
         "highlights": [],
-        "execute": "no",
+        "ExEcUtE": "no",
     }
-    with pytest.raises(RuntimeError, match="forbidden output key"):
+    with pytest.raises(RuntimeError, match=r"forbidden output key: ExEcUtE"):
         validate_agent_output("fast", payload)
 
 

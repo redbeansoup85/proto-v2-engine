@@ -3,48 +3,17 @@
   "title": "FastAgentOutput",
   "type": "object",
   "additionalProperties": false,
-
   "required": [
     "summary",
     "normalized_text",
     "highlights"
   ],
-
   "properties": {
-    "summary": {
-      "type": "string",
-      "description": "One-paragraph high level summary"
-    },
-
-    "normalized_text": {
-      "type": "string",
-      "description": "Cleaned / normalized natural language output"
-    },
-
+    "summary": { "type": "string" },
+    "normalized_text": { "type": "string" },
     "highlights": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Bullet-style highlights"
-    },
-
-    "cmd_execute": {
-      "type": ["string", "number", "object", "array", "boolean", "null"],
-      "description": "Neutral slot (schema-allowed, gate-filtered)"
-    },
-
-    "broker_order": {
-      "type": ["string", "number", "object", "array", "boolean", "null"],
-      "description": "Neutral slot (schema-allowed, gate-filtered)"
-    },
-
-    "position_size": {
-      "type": ["string", "number", "object", "array", "boolean", "null"],
-      "description": "Neutral slot (schema-allowed, gate-filtered)"
-    },
-
-    "risk_leverage": {
-      "type": ["string", "number", "object", "array", "boolean", "null"],
-      "description": "Neutral slot (schema-allowed, gate-filtered)"
+      "items": { "type": "string" }
     }
   }
 }

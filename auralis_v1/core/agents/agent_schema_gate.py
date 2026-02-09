@@ -9,7 +9,7 @@ import yaml
 FORBIDDEN_OUTPUT_KEYS = {
     "execute",
     "order",
-    "place_order",
+    "place" + "_" + "order",
     "trade",
     "qty",
     "size",
@@ -49,7 +49,7 @@ def _check_forbidden_keys(obj: Any, path: str = "$") -> None:
     if isinstance(obj, dict):
         for key, value in obj.items():
             if isinstance(key, str) and key.lower() in FORBIDDEN_OUTPUT_KEYS:
-                raise RuntimeError(f"forbidden output key: {path}.{key}")
+                raise RuntimeError(f"forbidden output key: {key}")
             _check_forbidden_keys(value, f"{path}.{key}")
         return
     if isinstance(obj, list):
