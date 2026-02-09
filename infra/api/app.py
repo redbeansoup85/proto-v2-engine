@@ -22,7 +22,9 @@ def _utcnow_naive() -> datetime:
     return datetime.utcnow()
 
 
-def _is_truthy(value: str | None) -> bool:
+from typing import Optional
+
+def _is_truthy(value: Optional[str]) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
