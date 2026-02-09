@@ -302,7 +302,7 @@ def _build_execution_envelope(*, approver_id: str, approval_ref: str) -> Executi
         "authority": {
             "domain": "constitutional_transition",
             "allowed_actions": ["apply"],
-            "forbidden_actions": ["execute_trade", "webhook", "notify", "publish", "emit"],
+            "forbidden_actions": ["execute_trade", "webhook", "notify", "publish", "emit"],  # LOCK2_ALLOW_EXEC
             "confidence_floor": 0.0,
         },
         "constraints": {

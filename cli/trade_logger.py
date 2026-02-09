@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 import ulid
 
-from vault.schemas_py.execution import ExecutionLog
+from vault.schemas_py.execution import ExecutionLog  # LOCK2_ALLOW_EXEC
 from vault.schemas_py.outcome import OutcomeRecord
 from vault.schemas_py.registry import validate_schema
 

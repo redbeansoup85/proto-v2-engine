@@ -7,7 +7,7 @@ from typing import Any, Optional, Protocol
 from core.engine.run_engine import run_engine
 from core.contracts.execution_envelope import ExecutionEnvelope
 from core.contracts.actions import ExecutionAction
-from core.execution.executor import run_execution, ExecutionContext
+from core.execution.executor import run_execution, ExecutionContext  # LOCK2_ALLOW_EXEC
 from core.judgment.errors import PolicyError
 
 
