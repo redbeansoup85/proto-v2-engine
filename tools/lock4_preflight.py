@@ -12,7 +12,7 @@ class PreflightError(Exception):
     pass
 
 
-def _find_repo_root(start: Path) -> Path | None:
+def _find_repo_root(start: Path) -> Optional[Path]:
     current = start.resolve()
     for _ in range(100):
         git_dir = current / ".git"
@@ -24,7 +24,7 @@ def _find_repo_root(start: Path) -> Path | None:
     return None
 
 
-def _as_int(value: str | None, default: int) -> int:
+def _as_int(value: Optional[str], default: int) -> int:
     if value is None or value == "":
         return default
     return int(value)
@@ -48,7 +48,7 @@ def _format_missing(items: List[str]) -> str:
     return ", ".join(items) if items else "none"
 
 
-def run_preflight(argv: List[str] | None = None) -> Tuple[int, Dict[str, Any], List[str]]:
+def run_preflight(argv: Optional[List[str]] = None) -> Tuple[int, Dict[str, Any], List[str]]:
     ap = argparse.ArgumentParser(description="LOCK-4 preflight (read-only)")
     ap.add_argument("--mode", choices=["warn", "enforce"], default=None)
     ap.add_argument("--clock-skew-seconds", type=int, default=None)
@@ -183,7 +183,7 @@ def run_preflight(argv: List[str] | None = None) -> Tuple[int, Dict[str, Any], L
     return 0, report, lines
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     try:
         code, _report, lines = run_preflight(argv)
         for line in lines:
