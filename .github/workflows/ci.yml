@@ -10,19 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "sqlite+aiosqlite:///test.db"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: Set up Python (fixed)
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # ✅ SSOT 기반 토큰/경로 규칙 강제 (기존 bash 로직 대체)
-      - name: Enforce change classification token (DEV_LANGUAGE)
+      - name: Verify change classification + governance policy (SSOT)
         shell: bash
         run: |
           set -euo pipefail
@@ -48,7 +48,7 @@ jobs:
           rm -f "$DB"
           sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
 
-          export DATABASE_URL="sqlite+aiosqlite:///$(realpath "$DB")"
+          export DATABASE_URL="sqlite+aiosqlite:///$DB"
 
           python -m py_compile infra/api/alembic/env.py
           python -m alembic -c infra/api/alembic.ini -q upgrade head
