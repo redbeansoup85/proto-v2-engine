@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from domains.sentinel.feeds.base import MarketDataSnapshot
-from domains.sentinel.tracks.simulation.pipeline import run_simulation_pipeline
-from domains.sentinel.tracks.simulation.validators import validate_simulation_intent
+from sentinel.feeds.base import MarketDataSnapshot
+from sentinel.tracks.simulation.pipeline import run_simulation_pipeline
+from sentinel.tracks.simulation.validators import validate_simulation_intent
 
 
 class _FreshProvider:

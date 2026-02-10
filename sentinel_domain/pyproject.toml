@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-domain"
+version = "0.1.0"
+description = "Standalone Sentinel dual-track domain package"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+feeds = ["requests>=2.31.0"]
+test = ["pytest>=7.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["sentinel_domain"]
+include = ["sentinel*"]

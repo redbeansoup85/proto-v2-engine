@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from domains.sentinel.adapter.observer_adapter import observer_event_to_trade_intent
-from domains.sentinel.feeds.base import MarketDataProvider
-from domains.sentinel.tracks.simulation.audit_writer import append_simulation_audit
-from domains.sentinel.tracks.simulation.validators import enforce_conservative_behavior, validate_simulation_intent
+from sentinel.adapter.observer_adapter import observer_event_to_trade_intent
+from sentinel.feeds.base import MarketDataProvider
+from sentinel.tracks.simulation.audit_writer import append_simulation_audit
+from sentinel.tracks.simulation.validators import enforce_conservative_behavior, validate_simulation_intent
 
 
 def run_simulation_pipeline(

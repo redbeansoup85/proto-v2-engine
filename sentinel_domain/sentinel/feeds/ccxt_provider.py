@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from domains.sentinel.feeds.base import MarketDataProvider, MarketDataSnapshot, utc_now_iso
+from sentinel.feeds.base import MarketDataProvider, MarketDataSnapshot, utc_now_iso
 
 
 class CCXTProvider(MarketDataProvider):

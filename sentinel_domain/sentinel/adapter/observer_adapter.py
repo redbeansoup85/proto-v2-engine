@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from domains.sentinel.feeds.base import MarketDataProvider, MarketDataSnapshot
+from sentinel.feeds.base import MarketDataProvider, MarketDataSnapshot
 
 
 def _utc_now_iso() -> str:
