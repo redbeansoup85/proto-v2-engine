@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from domains.sentinel.feeds.base import MarketDataSnapshot
-from domains.sentinel.tracks.simulation.pipeline import run_simulation_pipeline
-from domains.sentinel.tracks.simulation.validators import validate_simulation_intent
+from sentinel_domain.sentinel.feeds.base import MarketDataSnapshot
+from sentinel_domain.sentinel.tracks.simulation.pipeline import run_simulation_pipeline
+from sentinel_domain.sentinel.tracks.simulation.validators import validate_simulation_intent
 
 
 class _FreshProvider:
@@ -44,7 +44,7 @@ def test_forbidden_keys_in_simulation_fail_closed() -> None:
     payload = {
         "track_id": "SIMULATION",
         "no_execute": True,
-        "nested": {"place_order": "x"},
+        "nested": {"submit_intent": "x"},
     }
     with pytest.raises(RuntimeError, match="forbidden keys"):
         validate_simulation_intent(payload)

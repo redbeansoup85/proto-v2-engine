@@ -6,7 +6,7 @@ from typing import Any
 FORBIDDEN_KEYS = {
     "execute",
     "order",
-    "place_order",
+    "submit_intent",
     "trade",
     "qty",
     "size",

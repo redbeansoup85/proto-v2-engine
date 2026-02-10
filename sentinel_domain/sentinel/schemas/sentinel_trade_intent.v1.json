@@ -95,7 +95,7 @@
       "default": [
         "execute",
         "order",
-        "place_order",
+        "submit_intent",
         "trade",
         "qty",
         "size",
