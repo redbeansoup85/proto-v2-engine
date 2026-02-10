@@ -16,6 +16,18 @@ import json
 from typing import Iterable, List, Optional
 
 
+def _is_git_worktree(root: Path) -> bool:
+    """Return True if `root` is inside a git worktree."""
+    import subprocess
+    p = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+    )
+    return p.returncode == 0 and p.stdout.strip() == "true"
+
+
 APPROVAL_DIR = Path("infra") / "approval"
 
 # strict-ish patterns (avoid matching random "execution" words)
@@ -132,6 +144,10 @@ def _changed_files_push(root: Path) -> List[str]:
 
 
 def determine_changed_files_fail_closed(root: Path) -> List[str]:
+    # tests/tmp_path 등 비-git 루트는 changed-files 모드 금지 → full-scan 유도
+    if not _is_git_worktree(root):
+        return []
+
     if os.getenv("GITHUB_ACTIONS") == "true":
         if os.getenv("GITHUB_EVENT_NAME") == "pull_request":
             changed = _git_changed_files_from_pr_event()
@@ -168,6 +184,10 @@ def iter_scan_targets(root: Path) -> List[Path]:
         if relp.startswith("tools/gates/"):
             continue
         targets.append(p)
+
+    if not targets:
+        return [p for p in root.rglob("*.py") if p.is_file()]
+
     return targets
 
 
