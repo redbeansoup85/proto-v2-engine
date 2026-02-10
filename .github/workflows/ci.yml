@@ -21,75 +21,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Verify commit classification token (A-MAJOR/A-MINOR/A-PATCH)
-        id: class
+      # ✅ SSOT 기반 토큰/경로 규칙 강제 (기존 bash 로직 대체)
+      - name: Enforce change classification token (DEV_LANGUAGE)
         shell: bash
         run: |
           set -euo pipefail
-
-          # PR: base..head commit subjects (%s)
-          # push: HEAD full commit message (%B) to support merge commits
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.event.pull_request.head.sha }}"
-            subjects="$(git log --format=%s "$base..$head" || true)"
-          else
-            subjects="$(git log -1 --format=%B)"
-          fi
-
-          echo "Subjects:"
-          echo "$subjects"
-
-          token=""
-          if echo "$subjects" | grep -Eq '^A-MAJOR:'; then
-            token="A-MAJOR"
-          elif echo "$subjects" | grep -Eq '^A-MINOR:'; then
-            token="A-MINOR"
-          elif echo "$subjects" | grep -Eq '^A-PATCH:'; then
-            token="A-PATCH"
-          fi
-
-          if [ -z "$token" ]; then
-            echo "Missing classification token in commit subjects."
-            exit 1
-          fi
-
-          echo "token=$token" >> "$GITHUB_OUTPUT"
-
-      - name: Disallow A-PATCH when governance docs changed
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          token="${{ steps.class.outputs.token }}"
-          echo "Token: $token"
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.event.pull_request.head.sha }}"
-            changed="$(git diff --name-only "$base" "$head" || true)"
-          else
-            # push: prefer event before..after range (works for merge commits too)
-            before="${{ github.event.before }}"
-            after="${{ github.sha }}"
-            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-              changed="$(git diff --name-only "$before" "$after" || true)"
-            else
-              changed="$(git diff --name-only HEAD~1..HEAD || true)"
-            fi
-          fi
-
-          echo "Changed files:"
-          echo "$changed"
-
-          if echo "$changed" | grep -Eq '^docs/governance/'; then
-            echo "Governance docs changed; require A-MINOR or A-MAJOR."
-            if [ "$token" != "A-MAJOR" ] && [ "$token" != "A-MINOR" ]; then
-              exit 1
-            fi
-          else
-            echo "No governance docs change detected."
-          fi
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml
+          python -m tools.ci.verify_change_token
 
       - name: Install dependencies
         shell: bash
@@ -109,7 +48,7 @@ jobs:
           rm -f "$DB"
           sqlite3 "$DB" "PRAGMA user_version;" >/dev/null
 
-          export DATABASE_URL="sqlite+aiosqlite:///$DB"
+          export DATABASE_URL="sqlite+aiosqlite:///$(realpath "$DB")"
 
           python -m py_compile infra/api/alembic/env.py
           python -m alembic -c infra/api/alembic.ini -q upgrade head
