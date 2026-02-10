@@ -95,7 +95,7 @@
       "default": [
         "execute",
         "order",
-        "place_order",
+        "EXEC_TOKEN_PLACE_ORDER",
         "trade",
         "qty",
         "size",

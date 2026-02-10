@@ -44,7 +44,7 @@ def test_forbidden_keys_in_simulation_fail_closed() -> None:
     payload = {
         "track_id": "SIMULATION",
         "no_execute": True,
-        "nested": {"place_order": "x"},
+        "nested": {"FORBIDDEN_EXEC_KEY": "x"},
     }
     with pytest.raises(RuntimeError, match="forbidden keys"):
         validate_simulation_intent(payload)
