@@ -10,24 +10,86 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: "sqlite+aiosqlite:///test.db"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python (fixed)
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Verify change classification + governance policy (SSOT)
+
+      - name: Verify commit classification token (A-MAJOR/A-MINOR/A-PATCH)
+        id: class
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml
-          python -m tools.ci.verify_change_token
+
+          # PR: base..head commit subjects (%s)
+          # push: HEAD full commit message (%B) to support merge commits
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            subjects="$(git log --format=%s "$base..$head" || true)"
+          else
+            subjects="$(git log -1 --format=%B)"
+          fi
+
+          echo "Subjects:"
+          echo "$subjects"
+
+          token=""
+          if echo "$subjects" | grep -Eq '^A-MAJOR:'; then
+            token="A-MAJOR"
+          elif echo "$subjects" | grep -Eq '^A-MINOR:'; then
+            token="A-MINOR"
+          elif echo "$subjects" | grep -Eq '^A-PATCH:'; then
+            token="A-PATCH"
+          fi
+
+          if [ -z "$token" ]; then
+            echo "Missing classification token in commit subjects."
+            exit 1
+          fi
+
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Disallow A-PATCH when governance docs changed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          token="${{ steps.class.outputs.token }}"
+          echo "Token: $token"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            changed="$(git diff --name-only "$base" "$head" || true)"
+          else
+            # push: prefer event before..after range (works for merge commits too)
+            before="${{ github.event.before }}"
+            after="${{ github.sha }}"
+            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              changed="$(git diff --name-only "$before" "$after" || true)"
+            else
+              changed="$(git diff --name-only HEAD~1..HEAD || true)"
+            fi
+          fi
+
+          echo "Changed files:"
+          echo "$changed"
+
+          if echo "$changed" | grep -Eq '^docs/governance/'; then
+            echo "Governance docs changed; require A-MINOR or A-MAJOR."
+            if [ "$token" != "A-MAJOR" ] && [ "$token" != "A-MINOR" ]; then
+              exit 1
+            fi
+          else
+            echo "No governance docs change detected."
+          fi
 
       - name: Install dependencies
         shell: bash

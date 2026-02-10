@@ -20,18 +20,12 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"      - name: run gatekit template drift gate (fail-closed)
+          python-version: "3.11"
+
+      - name: run gatekit template drift gate (fail-closed)
         run: |
           python tools/gates/gate_template_drift_gate.py \
             --require-template-tag \
             --workflows-root .github/workflows \
             --templates-root gatekit/templates \
             --max-tag-lines 5
-
-      - name: Verify change classification + governance policy (SSOT)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml
-          python -m tools.ci.verify_change_token

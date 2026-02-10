@@ -20,13 +20,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"      - name: Verify change classification + governance policy (SSOT)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml
-          python -m tools.ci.verify_change_token
+          python-version: "3.11"
+
       - name: Install dependencies
         shell: bash
         run: |
