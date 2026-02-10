@@ -132,29 +132,20 @@ def _changed_files_push(root: Path) -> List[str]:
 
 
 def determine_changed_files_fail_closed(root: Path) -> List[str]:
-    is_pr = (
-        os.getenv("GITHUB_EVENT_NAME") == "pull_request"
-        or bool(os.getenv("GITHUB_BASE_REF"))
-    )
-
-    if is_pr:
-        changed = _git_changed_files_from_pr_event()
-        if changed:
-            return changed
-        fallback = _git_changed_files_fallback()
-        if fallback:
-            return fallback
-        base = os.getenv("GITHUB_BASE_REF") or "main"
-        return _changed_files_pr(root, base)
-
-    return _changed_files_push(root)
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        if os.getenv("GITHUB_EVENT_NAME") == "pull_request":
+            changed = _git_changed_files_from_pr_event()
+            if changed:
+                return changed
+            return _git_changed_files_fallback()
+        return _changed_files_push(root)
+    return []
 
 
 def iter_scan_targets(root: Path) -> List[Path]:
     targets: List[Path] = []
-    in_ci = os.getenv("GITHUB_ACTIONS") == "true"
-    if in_ci:
-        changed = determine_changed_files_fail_closed(root)
+    changed = determine_changed_files_fail_closed(root)
+    if changed:
         for rel in changed:
             p = (root / rel).resolve()
             if p.exists() and p.is_file() and p.suffix == ".py":
@@ -166,7 +157,7 @@ def iter_scan_targets(root: Path) -> List[Path]:
                 targets.append(p)
         return targets
 
-    # local/non-CI mode: full tree scan for deterministic developer checks/tests
+    # local mode (or empty changed-file set): full tree scan
     for p in root.rglob("*.py"):
         try:
             relp = p.resolve().relative_to(root.resolve()).as_posix()
