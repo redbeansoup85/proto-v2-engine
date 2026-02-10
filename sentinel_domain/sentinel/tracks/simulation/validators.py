@@ -4,13 +4,23 @@ from typing import Any
 
 
 FORBIDDEN_KEYS = {
+    "api_key",
+    "private_key",
+    "seed_phrase",
+    "mnemonic",
+    "password",
+    "secret",
+    "token",
     "execute",
     "order",
     "place_order",
+    "broker",
     "trade",
     "qty",
     "size",
     "price",
+    "sl",
+    "tp",
     "leverage",
     "position",
     "approve",
@@ -32,14 +42,19 @@ def _scan_forbidden_keys(obj: Any, path: str = "$") -> list[str]:
     return hits
 
 
-def validate_simulation_intent(intent: dict[str, Any]) -> None:
+def validate_trade_intent(intent: dict[str, Any]) -> dict[str, Any]:
     hits = _scan_forbidden_keys(intent)
     if hits:
         raise RuntimeError(f"FAIL_CLOSED: forbidden keys found: {hits}")
+    if intent.get("no_execute") is not True:
+        raise RuntimeError("FAIL_CLOSED: no_execute must be true")
+    return intent
+
+
+def validate_simulation_intent(intent: dict[str, Any]) -> None:
+    validate_trade_intent(intent)
     if intent.get("track_id") != "SIMULATION":
         raise RuntimeError("FAIL_CLOSED: simulation validator requires track_id=SIMULATION")
-    if intent.get("no_execute") is not True:
-        raise RuntimeError("FAIL_CLOSED: no_execute must be true for SIMULATION")
 
 
 def enforce_conservative_behavior(intent: dict[str, Any]) -> dict[str, Any]:
