@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Protocol
 
@@ -9,11 +9,12 @@ from typing import Protocol
 class MarketDataSnapshot:
     provider_id: str
     retrieved_at: str
-    source_timestamp: str
+    source_timestamp: str | None
     staleness_flag: bool
     quality_flags: list[str]
     asset: str
     price: float | None
+    candles: list[list[float | int]] = field(default_factory=list)
 
 
 class MarketDataProvider(Protocol):

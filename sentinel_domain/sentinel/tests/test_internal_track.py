@@ -75,3 +75,25 @@ def test_idempotency_dedupe() -> None:
     _ = create_internal_exec_intent(**kwargs)
     with pytest.raises(RuntimeError, match="duplicate idempotency_key"):
         create_internal_exec_intent(**kwargs)
+
+
+def test_internal_exec_gate_stale_quality_returns_hold_flat() -> None:
+    store = IdempotencyStore()
+    src = _internal_source_intent()
+    src["side"] = "LONG"
+    src["quality"]["staleness_flag"] = True
+    src["quality"]["quality_flags"] = ["stale"]
+    result = create_internal_exec_intent(
+        sentinel_trade_intent=src,
+        mode="paper",
+        idempotency_key="idem-stale-001",
+        approval_id=None,
+        producer_component="exec_gate",
+        idempotency_store=store,
+    )
+    assert result["schema_version"] == "sentinel_trade_intent.v1"
+    assert result["side"] == "FLAT"
+    assert result["no_execute"] is True
+    flags = [str(x) for x in result["quality"]["quality_flags"]]
+    assert "STALE_DATA_HOLD" in flags
+    assert "INTERNAL_EXEC_BLOCKED_QUALITY" in flags

@@ -56,6 +56,27 @@ def create_internal_exec_intent(
     if len(src_intent_id) < 8:
         raise RuntimeError("FAIL_CLOSED: source intent_id missing")
 
+    quality = sentinel_trade_intent.get("quality") if isinstance(sentinel_trade_intent.get("quality"), dict) else {}
+    flags = [str(x).lower() for x in (quality.get("quality_flags") or [])]
+    degraded = bool(quality.get("staleness_flag")) or any(f in {"stale", "exchange_error", "rate_limited"} for f in flags)
+    if degraded:
+        hold_intent = dict(sentinel_trade_intent)
+        hold_intent["side"] = "FLAT"
+        hold_intent["mode"] = "DRY_RUN"
+        hold_intent["no_execute"] = True
+        hold_intent["analysis_summary"] = "HOLD: degraded market data quality"
+        hold_quality = dict(quality)
+        hold_flags = list(hold_quality.get("quality_flags") or [])
+        if "STALE_DATA_HOLD" not in hold_flags:
+            hold_flags.append("STALE_DATA_HOLD")
+        if "INTERNAL_EXEC_BLOCKED_QUALITY" not in hold_flags:
+            hold_flags.append("INTERNAL_EXEC_BLOCKED_QUALITY")
+        hold_quality["quality_flags"] = hold_flags
+        hold_intent["quality"] = hold_quality
+        hold_intent["producer"] = {"domain": "sentinel", "component": "exec_gate"}
+        hold_intent["created_at"] = _utc_now_iso()
+        return hold_intent
+
     result = {
         "schema_version": "internal_exec_intent.v1",
         "exec_intent_id": f"IEXEC-{_sha8({'src': src_intent_id, 'idem': idempotency_key})}",
