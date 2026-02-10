@@ -15,7 +15,7 @@ allow:
 forbidden_field_patterns:
   - execute
   - execution
-  - place_order
+  - submit_intent
   - order
   - orders
   - position

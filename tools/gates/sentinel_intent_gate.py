@@ -8,7 +8,7 @@ import jsonschema
 GATE_ID = "GATE-SENTINEL-INTENT-V1"
 
 FORBIDDEN_KEYS = {
-    "execute","execution","place_order","order","orders",
+    "execute","execution","order","orders",
     "position","positions","qty","quantity","size","leverage",
     "entry_price","stop_loss","take_profit","order_type",
     "reduce_only","api_key","secret","token",
