@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-feeds = ["requests>=2.31.0"]
+feeds = ["requests>=2.31.0", "ccxt>=4.3.0", "yfinance>=0.2.40"]
 test = ["pytest>=7.0.0"]
 
 [tool.setuptools.packages.find]
