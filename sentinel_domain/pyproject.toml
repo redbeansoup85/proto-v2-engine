@@ -6,13 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "sentinel-domain"
 version = "0.1.0"
 description = "Standalone Sentinel dual-track domain package"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = []
 
 [project.optional-dependencies]
-feeds = ["requests>=2.31.0", "ccxt>=4.3.0", "yfinance>=0.2.40"]
-test = ["pytest>=7.0.0"]
+test = ["pytest>=7.0"]
+feeds = ["ccxt>=4.0.0", "yfinance>=0.2.0"]
+
+[tool.setuptools]
+package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
-where = ["sentinel_domain"]
+where = ["."]
 include = ["sentinel*"]
