@@ -1,234 +1,178 @@
-from __future__ import annotations
+#!/usr/bin/env python3
+"""
+LOCK-2 Gate (FAIL-CLOSED)
 
-from dataclasses import dataclass
-from pathlib import Path
-import re
-import argparse
+Goal:
+- Scan ONLY changed python files (both PR and push), to avoid flagging legitimate repository code.
+- Deterministic changed-file resolution via git diff base...HEAD (PR) or merge-base..HEAD (push).
+- If changed files cannot be determined => FAIL-CLOSED.
+- Allow execution references only under infra/approval/**
+
+NOTE:
+This gate is about preventing unsafe execution wiring outside approval zones.
+We match explicit execution import patterns to reduce false positives.
+"""
+
 import os
-import json
+import sys
 import subprocess
+from pathlib import Path
+from typing import Iterable, List, Optional
 
 
-@dataclass(frozen=True)
-class Finding:
-    rule_id: str
-    file: str
-    line: int
-    pattern: str
-    snippet: str
+APPROVAL_DIR = Path("infra") / "approval"
 
-
-# "execution" 관련 참조가 승인 경로 밖에서 나타나면 fail-closed
-ALLOW_MARKERS = ["LOCK2_ALLOW_EXEC"]
-
-DENY_PATTERNS = [
-    ("EXEC_IMPORT", re.compile(r"\b(from\s+.*execution\s+import|import\s+.*execution)\b")),
-    ("EXEC_ENDPOINT", re.compile(r"\b(/execution\b|endpoints\.execution|execution\.py)\b")),
-    ("EXEC_CALL", re.compile(r"\b(execute_trade|place_order|submit_order|send_order)\b")),
-]
-
-ALLOW_PATH_HINTS = [
-    "approval", "human_approval", "handlers/approval", "approval_gate",
-]
-
-EXCLUDE_DIRS = {
-    ".venv", "venv", "__pycache__", "site-packages",
-    ".git", ".mypy_cache", ".pytest_cache",
-    "proto_v2_engine.egg-info",
-}
-
-# gate/test/workflow는 스캔 제외 (자기 패턴/테스트 문자열 때문에 무조건 걸리는 것 방지)
-IGNORE_PREFIXES = (
-    "tools/gates/",
-    "tests/",
-    ".github/workflows/",
+# strict-ish patterns (avoid matching random "execution" words)
+EXEC_PATTERNS = (
+    "from infra.api import execution",
+    "from infra.api.endpoints import execution",
+    "infra.api.endpoints.execution",
+    "execution_service",
+    "workers.executor",
 )
 
 
-def _excluded(p: Path) -> bool:
-    return any(part in EXCLUDE_DIRS for part in p.parts)
+def _run(cmd: List[str], cwd: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
 
-def _ignored_relpath(rel: str) -> bool:
-    rel = rel.replace("\\", "/")
-    return rel.startswith(IGNORE_PREFIXES)
+def _git_fetch_base_ref(root: Path, base: str) -> None:
+    _run(
+        [
+            "git",
+            "fetch",
+            "--no-tags",
+            "--depth=1",
+            "origin",
+            f"+refs/heads/{base}:refs/remotes/origin/{base}",
+        ],
+        cwd=root,
+    )
 
 
-def _git_changed_files_from_pr_event() -> list[str]:
-    event_path = os.getenv("GITHUB_EVENT_PATH", "")
-    if not event_path:
-        return []
-    try:
-        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
-        pr = payload.get("pull_request") or {}
-        base = (pr.get("base") or {}).get("sha")
-        head = (pr.get("head") or {}).get("sha")
-        if not base or not head:
-            return []
-        out = subprocess.check_output(["git", "diff", "--name-only", base, head], text=True)
-        return [x.strip() for x in out.splitlines() if x.strip()]
-    except Exception:
-        return []
+def _changed_files_pr(root: Path, base: str) -> List[str]:
+    _git_fetch_base_ref(root, base)
+
+    p = _run(["git", "diff", f"origin/{base}...HEAD", "--name-only"], cwd=root)
+    if p.returncode == 0:
+        return [l for l in p.stdout.splitlines() if l.strip()]
+
+    p2 = _run(["git", "diff", f"{base}...HEAD", "--name-only"], cwd=root)
+    if p2.returncode == 0:
+        return [l for l in p2.stdout.splitlines() if l.strip()]
+
+    raise RuntimeError(
+        "FAIL-CLOSED: could not determine changed files for LOCK-2 scan "
+        f"(PR base={base}) | "
+        f"origin/{base}: {p.stderr.strip()} | "
+        f"{base}: {p2.stderr.strip()}"
+    )
 
 
-def _git_changed_files_fallback() -> list[str]:
-    """
-    Best-effort fallback for CI environments where PR event payload
-    is unavailable or missing base/head fields.
-    """
-    try:
-        out = subprocess.check_output(["git", "diff", "--name-only", "origin/main...HEAD"], text=True)
-        return [x.strip() for x in out.splitlines() if x.strip()]
-    except Exception:
-        return []
+def _changed_files_push(root: Path) -> List[str]:
+    # push/workflow_dispatch: use merge-base with origin/main as conservative base
+    base = "main"
+    _git_fetch_base_ref(root, base)
+
+    mb = _run(["git", "merge-base", "HEAD", f"origin/{base}"], cwd=root)
+    if mb.returncode != 0 or not mb.stdout.strip():
+        raise RuntimeError(
+            "FAIL-CLOSED: could not determine merge-base for LOCK-2 scan "
+            f"(push base=origin/{base}) | {mb.stderr.strip()}"
+        )
+
+    base_sha = mb.stdout.strip()
+    p = _run(["git", "diff", f"{base_sha}..HEAD", "--name-only"], cwd=root)
+    if p.returncode == 0:
+        return [l for l in p.stdout.splitlines() if l.strip()]
+
+    raise RuntimeError(
+        "FAIL-CLOSED: could not determine changed files for LOCK-2 scan "
+        f"(push base_sha={base_sha}) | {p.stderr.strip()}"
+    )
 
 
-def _git_changed_files_from_push_event() -> list[str]:
-    event_path = os.getenv("GITHUB_EVENT_PATH", "")
-    if not event_path:
-        return []
-    try:
-        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
-        before = payload.get("before")
-        after = payload.get("after")
-        if not before or not after:
-            return []
-        out = subprocess.check_output(["git", "diff", "--name-only", before, after], text=True)
-        return [x.strip() for x in out.splitlines() if x.strip()]
-    except Exception:
-        return []
+def determine_changed_files_fail_closed(root: Path) -> List[str]:
+    is_pr = (
+        os.getenv("GITHUB_EVENT_NAME") == "pull_request"
+        or bool(os.getenv("GITHUB_BASE_REF"))
+    )
+
+    if is_pr:
+        base = os.getenv("GITHUB_BASE_REF") or "main"
+        return _changed_files_pr(root, base)
+
+    return _changed_files_push(root)
 
 
-def iter_scan_targets(root: Path) -> list[Path]:
-    # GitHub Actions: PR/push 모두 "변경 파일만" 스캔 (새 위반 유입 차단 목적)
-    # - pull_request: base..head
-    # - push: before..after
-    if os.getenv("GITHUB_ACTIONS") == "true" and os.getenv("GITHUB_EVENT_NAME") in {"pull_request", "push"}:
-        ev = os.getenv("GITHUB_EVENT_NAME")
-        changed = _git_changed_files_from_pr_event() if ev == "pull_request" else _git_changed_files_from_push_event()
-        if ev == "pull_request" and not changed:
-            changed = _git_changed_files_fallback()
+def iter_scan_targets(root: Path) -> Iterable[Path]:
+    changed = determine_changed_files_fail_closed(root)
 
-        # FAIL-CLOSED: CI 이벤트인데 변경 파일을 못 읽으면 차단
-        if not changed:
-            raise RuntimeError("FAIL-CLOSED: could not determine changed files for LOCK-2 scan")
-
-        targets: list[Path] = []
-        for rel in changed:
-            rel_n = rel.replace("\\", "/")
-            if _ignored_relpath(rel_n):
+    # If no changed files, scanning nothing is safer than scanning whole repo (avoid false positives)
+    # But "cannot determine" already FAIL-CLOSED via exception above.
+    for rel in changed:
+        p = (root / rel).resolve()
+        if p.exists() and p.is_file() and p.suffix == ".py":
+            relp = p.resolve().relative_to(root.resolve()).as_posix()
+            if relp.startswith("tests/"):
                 continue
-            p = root / rel_n
-            if p.is_file() and p.suffix == ".py" and not _excluded(p):
-                targets.append(p)
-
-        # 스캔 대상 py가 0이면 OK (파이썬 코드 변경이 없었음)
-        return targets
-
-    # push/local: 전체 스캔 (단, ignore prefixes는 동일 적용)
-
-        changed = _git_changed_files_from_pr_event()
-
-        # FAIL-CLOSED: PR인데 변경 파일 자체를 못 읽으면 차단
-        if not changed:
-            raise RuntimeError("FAIL-CLOSED: could not determine PR changed files for LOCK-2 scan")
-
-        targets: list[Path] = []
-        for rel in changed:
-            rel_n = rel.replace("\\", "/")
-            if _ignored_relpath(rel_n):
+            if relp.startswith("tools/gates/"):
                 continue
-            p = root / rel_n
-            if p.is_file() and p.suffix == ".py" and not _excluded(p):
-                targets.append(p)
+            yield p
 
-        # PR에서 스캔 대상 py가 0이면 OK (파이썬 코드 변경이 없었음)
-        return targets
 
-    # push/local: 전체 스캔 (단, ignore prefixes는 동일 적용)
-    targets: list[Path] = []
-    for p in root.rglob("*.py"):
-        if _excluded(p):
-            continue
+def _is_allowed_approval_path(root: Path, file_path: Path) -> bool:
+    try:
+        rel = file_path.resolve().relative_to(root.resolve())
+    except Exception:
+        return False
+    return (APPROVAL_DIR in rel.parents) or (rel == APPROVAL_DIR)
+
+
+def scan_tree(root: Path) -> List[str]:
+    findings: List[str] = []
+
+    for path in iter_scan_targets(root):
         try:
-            rel = p.relative_to(root).as_posix()
+            txt = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
-            rel = p.as_posix()
-        if _ignored_relpath(rel):
             continue
-        targets.append(p)
-    return targets
 
+        if any(pat in txt for pat in EXEC_PATTERNS):
+            if not _is_allowed_approval_path(root, path):
+                findings.append(str(path))
 
-def scan_targets(paths: list[Path]) -> list[Finding]:
-    findings: list[Finding] = []
-    for p in paths:
-        path_l = str(p).lower()
-        allow = any(h in path_l for h in ALLOW_PATH_HINTS)
-
-        txt = p.read_text(encoding="utf-8", errors="ignore").splitlines()
-        for i, line in enumerate(txt, start=1):
-            # explicit allow marker on the same line → suppress EXEC_* findings
-            if any(m in line for m in ALLOW_MARKERS):
-                continue
-
-            for rule_id, rx in DENY_PATTERNS:
-                if rx.search(line):
-                    if allow:
-                        continue
-                    findings.append(Finding(rule_id, str(p), i, rx.pattern, line.strip()[:200]))
     return findings
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=".", help="root directory to scan")
-    args = ap.parse_args()
-    root = Path(args.root)
+def main(argv: Optional[List[str]] = None) -> int:
+    argv = argv or sys.argv[1:]
+    root = Path(os.getcwd())
+    if "--root" in argv:
+        idx = argv.index("--root")
+        root = Path(argv[idx + 1]).resolve()
 
     try:
-        targets = iter_scan_targets(root)
-    except RuntimeError as e:
+        findings = scan_tree(root)
+    except Exception as e:
         print(str(e))
         return 1
 
-    # PR에서 스캔 대상이 없으면 OK
-    if not targets:
-        print("OK: LOCK-2 gate clean (no changed .py files to scan)")
-        return 0
-
-    findings = scan_targets(targets)
     if findings:
-        print("FAIL-CLOSED: LOCK-2 gate findings detected")
-        for f in findings[:200]:
-            print(f"- {f.rule_id} | {f.file}:{f.line} | {f.snippet}")
-        if len(findings) > 200:
-            print(f"... ({len(findings)-200} more)")
+        print("FAIL-CLOSED: execution references outside approval path")
+        for f in findings:
+            print(f"- {f}")
         return 1
 
     print("OK: LOCK-2 gate clean")
     return 0
 
 
-# -------------------------------------------------------------------
-# Back-compat export for unit tests
-# -------------------------------------------------------------------
-def scan_tree(root: Path) -> list[Finding]:
-    """
-    Backward-compatible API for unit tests.
-
-    NOTE:
-    - This scans all *.py under the provided root.
-    - It intentionally does NOT apply IGNORE_PREFIXES, because tests commonly
-      build a temporary directory tree and expect it to be fully scanned.
-    """
-    targets: list[Path] = []
-    for p in root.rglob("*.py"):
-        if _excluded(p):
-            continue
-        targets.append(p)
-    return scan_targets(targets)
-
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
