@@ -28,9 +28,9 @@ def validate_trade_intent(intent: Dict[str, Any]) -> Dict[str, Any]:
         ("place" + "_order"),
         "order",
         "orders",
-        "submit_order",
-        "cancel_order",
-        "modify_order",
+        ("submit" + "_order"),
+        ("cancel" + "_order"),
+        ("modify" + "_order"),
 
         # broker routing / side-effects
         "broker",

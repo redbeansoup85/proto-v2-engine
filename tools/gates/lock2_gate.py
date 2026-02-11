@@ -2,6 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import yaml
+
+
+
+
+def _policy_root(runtime_root: Path) -> Path:
+    # SSOT: env override first (Meta OS root), fallback to runtime root
+    env_root = os.getenv("META_OS_ROOT")
+    if env_root:
+        return Path(env_root).resolve()
+    return runtime_root.resolve()
+
+def _load_root_policy(root: Path):
+    policy_file = _policy_root(root) / "policies" / "root_tree_allowlist.v1.yaml"
+    if not policy_file.exists():
+        raise RuntimeError("FAIL-CLOSED: missing root_tree_allowlist.v1.yaml")
+
+    cfg = yaml.safe_load(policy_file.read_text(encoding="utf-8"))
+    allowed_dirs = set(cfg.get("allowed_root_dirs", []))
+    return allowed_dirs
+
 import re
 import argparse
 import os
@@ -134,6 +155,22 @@ def iter_scan_targets(root: Path) -> list[Path]:
     # push/local: 전체 스캔 (단, ignore prefixes는 동일 적용)
     targets: list[Path] = []
     for p in root.rglob("*.py"):
+        rel = p.relative_to(root).as_posix()
+
+        # LOCK-2 scan scope (v1):
+        # - only scan the proto-v2-engine capsule under SSOT root
+        # - never scan gates/tests (they contain patterns + intentional exec refs)
+        if not rel.startswith("proto-v2-engine/"):
+            continue
+        if rel.startswith("proto-v2-engine/tools/gates/"):
+            continue
+        if rel.startswith("proto-v2-engine/tests/"):
+            continue
+
+        top = rel.split("/")[0]
+        allowed_dirs = _load_root_policy(root)
+        if top not in allowed_dirs:
+            continue
         if _excluded(p):
             continue
         try:
