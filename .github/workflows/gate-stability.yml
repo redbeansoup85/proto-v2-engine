@@ -1,0 +1,32 @@
+name: gate-stability
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  gate-stability:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+      AURALIS_AUDIT_PATH: var/logs/audit_sentinel.jsonl
+      AURALIS_GENESIS_PATH: var/seal/GENESIS.yaml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # minimum required for gate_cli / policy_engine
+          pip install pyyaml
+
+      - name: Run replay A/B + strict gate stability
+        run: |
+          bash scripts/run_replay_stability.sh
