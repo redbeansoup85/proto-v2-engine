@@ -28,6 +28,10 @@ def _save_json(path: str, obj: Any) -> None:
 
 
 def _now_iso() -> str:
+    # CI determinism lock (optional)
+    # Enable with: METAOS_CI_DETERMINISTIC_CONSUMER=1
+    if os.getenv("METAOS_CI_DETERMINISTIC_CONSUMER", "").strip().lower() in {"1","true","yes","y","on"}:
+        return "1970-01-01T00:00:00Z"
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 

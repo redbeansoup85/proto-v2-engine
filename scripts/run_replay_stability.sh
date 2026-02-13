@@ -3,6 +3,16 @@ set -euo pipefail
 
 MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# -----------------------------------------
+# CI: capture full transcript deterministically (no hang)
+# -----------------------------------------
+if [[ "${MODE:-}" == "ci" ]]; then
+  : "${CI_LOCK_REPORT_PATH:=/tmp/ci_lock_report.txt}"
+  rm -f "$CI_LOCK_REPORT_PATH"
+  # capture stdout+stderr; do NOT block waiting for stdin
+  exec > >(tee -a "$CI_LOCK_REPORT_PATH") 2>&1
+fi
+
 PY="$ROOT/.venv/bin/python"
 export PYTHONPATH="$ROOT"
 
@@ -18,7 +28,8 @@ gate_once(){
   "$PY" "$ROOT/sdk/gate_cli.py" \
     --input "$in_json" \
     --policy "$policy" \
-    --out "$out_json"
+    --out "$out_json" \
+    --include-policy-capsule
 }
 
 has_key(){
@@ -48,7 +59,15 @@ mode_ci(){
   require_file "$A_in"
   require_file "$B_in"
 
-  echo "[CI] policy: $policy"
+  # ----------------------------
+# CI log capture (for LOCK9 snapshot verification)
+# ----------------------------
+if [ "${1:-}" = "ci" ]; then
+  # Capture full stdout+stderr into /tmp/ci_lock_report.txt
+  exec > >(tee /tmp/ci_lock_report.txt) 2>&1
+fi
+
+echo "[CI] policy: $policy"
 
   gate_once "$A_in" "$policy" "$A_out"
   gate_once "$B_in" "$policy" "$B_out"
@@ -107,7 +126,65 @@ if a!=b:
 print("OK: deterministic")
 EOF
 
+  
+  echo "[CI] audit chain verify (append_audit + verify_chain)"
+
+  export AURALIS_AUDIT_PATH="/tmp/audit_ci_chain.jsonl"
+  rm -f "$AURALIS_AUDIT_PATH"
+
+  # Use gate_B output as payload source (already generated above)
+  "$PY" -m sdk.gate_cli --input "$B_in" --policy "$policy" --out "$B_out" --include-policy-capsule >/dev/null
+
+  "$PY" tools/audit_append_gate_chain.py \
+    --gate "$B_out" \
+    --ts 0 \
+    --event-id "CI:GATE_DECISION:BTCUSDT:POLICY_V1" >/dev/null
+
+  "$PY" tools/audit/verify_chain.py \
+    --schema sdk/schemas/audit_event.v1.json \
+    --chain "$AURALIS_AUDIT_PATH"
+
+  echo "[CI] OK: audit chain verified"
+
+  echo "[CI] LOCK4 plan+queue determinism"
+  bash "$ROOT/tools/action_ci_lock4.sh"
+  echo "[CI] OK: LOCK4 plan+queue deterministic"
+
+  echo "[CI] LOCK5 consumer+audit determinism"
+  bash "$ROOT/tools/action_ci_lock5.sh"
+  echo "[CI] OK: LOCK5 consumer+audit verified"
+
+  echo "[CI] LOCK6 orch inbox+audit determinism"
+  bash "$ROOT/tools/action_ci_lock6.sh"
+  echo "[CI] OK: LOCK6 orch inbox+audit verified"
+
+  echo "[CI] LOCK7 orch decision+audit determinism"
+  bash "$ROOT/tools/action_ci_lock7.sh"
+  echo "[CI] OK: LOCK7 orch decision+audit verified"
+
+  echo "[CI] LOCK8 orch outbox+audit determinism"
+  bash "$ROOT/tools/action_ci_lock8.sh"
+  echo "[CI] OK: LOCK8 orch outbox+audit verified"
+
+  echo "[CI] LOCK9 expected snapshot verify"
+  # Build current lock report from this CI log and compare with expected snapshot
+  python "$ROOT/tools/ci/build_lock_report.py" /tmp/ci_lock_report.txt /tmp/current_lock_report.json
+  python "$ROOT/tools/ci/verify_lock_report.py" "$ROOT/sdk/snapshots/expected_lock_report.ci.json" /tmp/current_lock_report.json
+  echo "[CI] OK: LOCK9 expected snapshot matches"
+
+
+
+
+
+
+
   echo "[CI] OK: strict policy stability locked"
+
+# --- LOCK REPORT ---
+
+echo "[CI] CI lock report"
+python "$ROOT/tools/ci/lock_report.py" /tmp/ci_lock_report.txt
+
 }
 
 mode_local(){
