@@ -12,7 +12,7 @@ def _scrub(obj: Any) -> Any:
         for k, v in obj.items():
             lk = k.lower()
 
-            # Drop volatile keys that commonly encode time/run/path.
+            # Drop volatile keys
             if lk in {
                 "ts","timestamp","created_at","createdat","updated_at","updatedat",
                 "generated_at","generatedat","run_id","runid","github_run_id",
@@ -23,7 +23,7 @@ def _scrub(obj: Any) -> Any:
             if lk in {"record_hash","prev_hash","payload_hash"}:
                 continue
 
-            # Drop any obvious path-ish fields
+            # Drop path-ish keys entirely
             if lk.endswith("_path") or lk.endswith("path"):
                 continue
 
@@ -45,6 +45,7 @@ def _scrub(obj: Any) -> Any:
 
     return obj
 
+
 def digest_json_file(path: str) -> str:
     p = Path(path)
     data = p.read_text(encoding="utf-8")
@@ -53,8 +54,10 @@ def digest_json_file(path: str) -> str:
     b = json.dumps(j2, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(b).hexdigest()
 
+
 def _parse_value(line: str) -> str:
     return line.split("=", 1)[1].strip()
+
 
 def main():
     if len(sys.argv) != 3:
@@ -67,7 +70,7 @@ def main():
 
     fields: Dict[str, Any] = {"schema": "metaos_lock_report.v1"}
 
-    # Stable values printed by CI already
+    # Stable values already printed by CI
     for line in lines:
         s = line.strip()
         if s.startswith("A.policy_sha256 ="):
@@ -75,21 +78,25 @@ def main():
         if s.startswith("A.policy_capsule.digest ="):
             fields["policy_capsule_digest"] = _parse_value(s)
 
-    # Artifact paths (we will scrub-digest these files)
+    # Artifact paths
     paths: Dict[str, Optional[str]] = {
-        "gate_same": None,      # /tmp/gate_same_1.json
-        "plan": None,           # plan1 path
-        "processed": None,      # processed1 path
-        "inbox": None,          # inbox1 path
-        "decision": None,       # dec1 path
-        "outbox_item": None,    # item1 path
+        "gate_same": None,
+        "plan": None,
+        "queue": None,
+        "processed": None,
+        "inbox": None,
+        "decision": None,
+        "outbox_item": None,
     }
 
     for line in lines:
         s = line.strip()
 
-        if s.startswith("OK: wrote /tmp/gate_same_1.json"):
-            paths["gate_same"] = "/tmp/gate_same_1.json"
+        # gate_same (allow flexible path)
+        if "gate_same_1.json" in s and s.startswith("OK: wrote"):
+            parts = s.split("OK: wrote", 1)
+            if len(parts) == 2:
+                paths["gate_same"] = parts[1].strip()
 
         if s.startswith("plan1 ="):
             paths["plan"] = _parse_value(s)
@@ -110,18 +117,18 @@ def main():
             paths["outbox_item"] = _parse_value(s)
 
     # Fail-closed if any expected artifact path missing
-    missing_paths = [k for k,v in paths.items() if v is None]
+    missing_paths = [k for k, v in paths.items() if v is None]
     if missing_paths:
         raise SystemExit("FAIL-CLOSED: missing artifact paths in CI log: " + ", ".join(missing_paths))
 
-    # Compute scrubbed digests (stable across TMP_BASE changes)
+    # Compute scrubbed digests
     fields["gate_same_digest"] = digest_json_file(paths["gate_same"])       # type: ignore[arg-type]
-    fields["plan_digest"]      = digest_json_file(paths["plan"])
-    fields["queue_digest"]     = digest_json_file(paths["queue"])
+    fields["plan_digest"] = digest_json_file(paths["plan"])                 # type: ignore[arg-type]
+    fields["queue_digest"] = digest_json_file(paths["queue"])               # type: ignore[arg-type]
     fields["processed_digest"] = digest_json_file(paths["processed"])       # type: ignore[arg-type]
-    fields["orch_inbox_digest"]= digest_json_file(paths["inbox"])           # type: ignore[arg-type]
+    fields["orch_inbox_digest"] = digest_json_file(paths["inbox"])          # type: ignore[arg-type]
     fields["orch_decision_digest"] = digest_json_file(paths["decision"])    # type: ignore[arg-type]
-    fields["outbox_item_digest"]   = digest_json_file(paths["outbox_item"]) # type: ignore[arg-type]
+    fields["outbox_item_digest"] = digest_json_file(paths["outbox_item"])   # type: ignore[arg-type]
 
     required = [
         "schema",
@@ -129,20 +136,24 @@ def main():
         "policy_capsule_digest",
         "gate_same_digest",
         "plan_digest",
+        "queue_digest",
         "processed_digest",
         "orch_inbox_digest",
         "orch_decision_digest",
         "outbox_item_digest",
     ]
+
     missing = [k for k in required if k not in fields]
     if missing:
         raise SystemExit("FAIL-CLOSED: missing fields in lock report build: " + ", ".join(missing))
 
     Path(out_path).write_text(
         json.dumps(fields, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8"
+        encoding="utf-8",
     )
+
     print(f"OK: wrote {out_path}")
+
 
 if __name__ == "__main__":
     main()
