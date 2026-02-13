@@ -28,7 +28,12 @@ if [[ "${MODE:-}" == "ci" ]]; then
   exec > >(tee -a "$CI_LOCK_REPORT_PATH") 2>&1
 fi
 
-PY="$ROOT/.venv/bin/python"
+PY="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
+# CI runners usually do not have repo-local .venv; fall back to system python
+if [[ ! -x "$PY" ]]; then
+  PY="$(command -v python3 || command -v python)"
+fi
+[[ -n "${PY:-}" ]] || { echo "ERROR: python not found" >&2; exit 1; }
 export PYTHONPATH="$ROOT"
 
 POLICY_DEFAULT="$ROOT/policies/sentinel/gate_v1.yaml"
