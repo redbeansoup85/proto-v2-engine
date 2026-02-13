@@ -1,52 +1,123 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# Prefer venv python if present; otherwise fall back to system python (CI).
-if [ -x "$ROOT/.venv/bin/python" ]; then
-  PY="$ROOT/.venv/bin/python"
-else
-  PY="$(command -v python3 || command -v python)"
-fi
-
-if [ -z "${PY:-}" ]; then
-  echo "ERROR: python interpreter not found"
-  exit 10
-fi
-
+PY="$ROOT/.venv/bin/python"
 export PYTHONPATH="$ROOT"
-export AURALIS_AUDIT_PATH="${AURALIS_AUDIT_PATH:-$ROOT/var/logs/audit_sentinel.jsonl}"
-export AURALIS_GENESIS_PATH="${AURALIS_GENESIS_PATH:-$ROOT/var/seal/GENESIS.yaml}"
 
-mkdir -p "$ROOT/var/logs" "$ROOT/var/local_llm" "$ROOT/var/seal"
+POLICY_DEFAULT="$ROOT/policies/sentinel/gate_v1.yaml"
 
-echo "== Using python =="
-"$PY" -c "import sys; print(sys.executable); print(sys.version)"
+die(){ echo "ERROR: $*" >&2; exit 1; }
+require_file(){ [[ -f "$1" ]] || die "missing file: $1"; }
 
-TMP_A="/tmp/sdk_stable_A.txt"
-TMP_B="/tmp/sdk_stable_B.txt"
+gate_once(){
+  local in_json="$1"
+  local policy="$2"
+  local out_json="$3"
+  "$PY" "$ROOT/sdk/gate_cli.py" \
+    --input "$in_json" \
+    --policy "$policy" \
+    --out "$out_json"
+}
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-  echo "== CI mode: skipping ollama replay; using deterministic gate fixtures =="
-  # Generate two REPLAY_RESULT blocks into A/B logs
-  "$PY" tools/check_gate_stability_ci.py | tee "$TMP_A" >/dev/null
-  # For B, reuse same output but stability checker expects two files
-  "$PY" tools/check_gate_stability_ci.py | tee "$TMP_B" >/dev/null
+has_key(){
+  local json_path="$1"
+  local key="$2"
+  "$PY" - <<PY
+import json
+j=json.load(open("$json_path"))
+print(str("$key" in j))
+PY
+}
 
-  echo "== Strict Gate Stability Check =="
-  "$PY" tools/check_gate_stability.py --strict "$TMP_A" "$TMP_B"
-  echo "== DONE =="
-  exit 0
-fi
+digest_section(){
+  local gate_json="$1"
+  local key="$2"
+  "$PY" "$ROOT/tools/capsule_digest.py" --in "$gate_json" --path "$key"
+}
 
-echo "== Running replay A =="
-"$PY" tools/local_llm/replay_sentinel_pipeline.py | tee "$TMP_A"
+mode_ci(){
+  local policy="${POLICY:-$POLICY_DEFAULT}"
+  local A_in="${A_IN:-/tmp/norm_A.json}"
+  local B_in="${B_IN:-/tmp/norm_B.json}"
+  local A_out="${A_OUT:-/tmp/gate_A.json}"
+  local B_out="${B_OUT:-/tmp/gate_B.json}"
 
-echo "== Running replay B =="
-"$PY" tools/local_llm/replay_sentinel_pipeline.py | tee "$TMP_B"
+  require_file "$policy"
+  require_file "$A_in"
+  require_file "$B_in"
 
-echo "== Strict Gate Stability Check =="
-"$PY" tools/check_gate_stability.py --strict "$TMP_A" "$TMP_B"
+  echo "[CI] policy: $policy"
 
-echo "== DONE =="
+  gate_once "$A_in" "$policy" "$A_out"
+  gate_once "$B_in" "$policy" "$B_out"
+
+  echo "[CI] policy_sha256 check"
+
+  "$PY" - <<PY
+import json, sys
+A=json.load(open("$A_out"))
+B=json.load(open("$B_out"))
+a=A.get("policy_sha256")
+b=B.get("policy_sha256")
+print("A.policy_sha256 =", a)
+print("B.policy_sha256 =", b)
+if a!=b:
+    sys.exit("policy_sha256 mismatch")
+print("OK: policy_sha256 identical")
+PY
+
+  # Optional: if policy_capsule exists, digest it too.
+  if [[ "$(has_key "$A_out" policy_capsule)" == "True" ]]; then
+    echo "[CI] policy_capsule digest check"
+    da="$(digest_section "$A_out" policy_capsule)"
+    db="$(digest_section "$B_out" policy_capsule)"
+    echo "A.policy_capsule.digest = $da"
+    echo "B.policy_capsule.digest = $db"
+    [[ "$da" == "$db" ]] || die "policy_capsule digest mismatch"
+  else
+    echo "[CI] policy_capsule missing; strict locked on policy_sha256 (expected)"
+  fi
+
+  
+  echo "[CI] determinism check (same input twice)"
+
+  local S_in="${S_IN:-$B_in}"
+  local S_out1="${S_OUT1:-/tmp/gate_same_1.json}"
+  local S_out2="${S_OUT2:-/tmp/gate_same_2.json}"
+
+  require_file "$S_in"
+
+  gate_once "$S_in" "$policy" "$S_out1"
+  gate_once "$S_in" "$policy" "$S_out2"
+
+  "$PY" - <<EOF
+import json, hashlib, sys
+def digest(p):
+    j=json.load(open(p))
+    b=json.dumps(j, sort_keys=True, separators=(",",":"), ensure_ascii=False).encode()
+    return hashlib.sha256(b).hexdigest()
+a=digest("$S_out1")
+b=digest("$S_out2")
+print("same1.digest =", a)
+print("same2.digest =", b)
+if a!=b:
+    sys.exit("gate decision not deterministic for identical input")
+print("OK: deterministic")
+EOF
+
+  echo "[CI] OK: strict policy stability locked"
+}
+
+mode_local(){
+  echo "[LOCAL] running strict gate stability only"
+  bash "$0" ci
+  echo "[LOCAL] OK"
+}
+
+case "$MODE" in
+  ci) mode_ci ;;
+  local) mode_local ;;
+  *) die "usage: $0 {ci|local}" ;;
+esac

@@ -124,3 +124,15 @@ def validate_gate_decision_v1(dec: Dict[str, Any]) -> None:
 
     if not _is_str(dec["policy_version"]) or not dec["policy_version"]:
         _fail("gate_decision.policy_version must be non-empty string")
+
+    # Optional: policy_sha256
+    if "policy_sha256" in dec and (not _is_str(dec["policy_sha256"]) or not dec["policy_sha256"]):
+        _fail("gate_decision.policy_sha256 must be non-empty string when provided")
+
+    # Optional: policy_capsule_sha256
+    if "policy_capsule_sha256" in dec and (not _is_str(dec["policy_capsule_sha256"]) or not dec["policy_capsule_sha256"]):
+        _fail("gate_decision.policy_capsule_sha256 must be non-empty string when provided")
+
+    # Optional: policy_capsule
+    if "policy_capsule" in dec and not isinstance(dec["policy_capsule"], dict):
+        _fail("gate_decision.policy_capsule must be object when provided")
