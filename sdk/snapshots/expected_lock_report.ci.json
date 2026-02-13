@@ -1,8 +1,8 @@
 {
   "gate_same_digest": "2d25d69cddfec2618675d55da8c9dd40a94512d6752c3a5823340e726871a7c6",
-  "orch_decision_digest": "91ab61b9a086b5221f3c51e9af5d2365ed421513cc36dbb6f429888bcea2f317",
+  "orch_decision_digest": "3ca3f80796713cd691579fe068c487da711b72b27db7712bfe3f81cc8482cf2d",
   "orch_inbox_digest": "a95e76956e5e6a42e212817d9d94e004443213ee23a822dc47212714d74b4d4f",
-  "outbox_item_digest": "2688b0a6f3a2ac530ad46087d4582764faee6000ee09b5fae7d5c95b761b2999",
+  "outbox_item_digest": "e7de1d8e862fdd8bc8b10923faae7ef50fe94fb9e042f338a0c67dda4b45d0fc",
   "plan_digest": "0a64a883edf7a6e0a27e2b0bf0068fe206da77f0125b49d3862debcdbf80a515",
   "policy_capsule_digest": "4a0006871d53e2eea8b78ef787eedae35ccbca1922791137409bc4e593b51225",
   "policy_sha256": "f81892ddcfb980739dabf994abdac86839073c6bea308df7a7c3b3e93b31dbe1",
