@@ -1,12 +1,12 @@
 {
   "gate_same_digest": "2d25d69cddfec2618675d55da8c9dd40a94512d6752c3a5823340e726871a7c6",
-  "orch_decision_digest": "7bcbc275e265511ab80f1d6420dee5bdf2ca05005952709e38fb9c53fa3d1c04",
+  "orch_decision_digest": "e1957174f71be1189b10ed3b99d818fcbcd58904c50b817b9b1f2952880a6521",
   "orch_inbox_digest": "af29486931e84d0b1bd1e8174abc764be2e94f8a4111eb6325697f353b06770a",
-  "outbox_item_digest": "9a03526903142c4034b361e6875add6ffe53300ffea16c825952f7d158012343",
+  "outbox_item_digest": "e543b126c66d74ff3084c02b085380e5f6cc4967ce918b28c0dce2995eb28a2f",
   "plan_digest": "629a9ac4fb31ad46774288af5f170f8dcbefa50c096ff1c6262e5f93a369dc31",
   "policy_capsule_digest": "4a0006871d53e2eea8b78ef787eedae35ccbca1922791137409bc4e593b51225",
   "policy_sha256": "f81892ddcfb980739dabf994abdac86839073c6bea308df7a7c3b3e93b31dbe1",
-  "processed_digest": "adadebc4cdcb7ffd8e0a4bdc7eea921a126c3dc3c736f9117faf1a8a176e91d1",
+  "processed_digest": "77bb2c78f03efcd0c4e46e66dd2cded28275f5b77db0650d0596b9c439ea82a0",
   "queue_digest": "a2544e8d624f028feecd210edb09c75efc2edae78dfd2e1a77f66a6a271629e1",
   "schema": "metaos_lock_report.v1"
 }
