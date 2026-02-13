@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --- TMP_BASE + NORM_A/B (must be defined before any mode function runs) ---
+TMP_BASE="${TMP_BASE:-}"
+if [ -z "${TMP_BASE}" ]; then
+  if [ -n "${GITHUB_RUN_ID:-}" ]; then
+    TMP_BASE="/tmp/metaos_ci_${GITHUB_RUN_ID}"
+  else
+    TMP_BASE="$(mktemp -d "/tmp/metaos_ci_local.XXXXXX")"
+  fi
+fi
+mkdir -p "$TMP_BASE"
+
+NORM_A="${TMP_BASE}/norm_A.json"
+NORM_B="${TMP_BASE}/norm_B.json"
+# -------------------------------------------------------------------------
+
 MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # -----------------------------------------
@@ -56,6 +71,36 @@ mode_ci(){
   local B_out="${B_OUT:-/tmp/gate_B.json}"
 
   require_file "$policy"
+  # CI: ensure norm_A/norm_B exist (legacy path /tmp/norm_A.json)
+  A_IN="${A_IN:-/tmp/norm_A.json}"
+  B_IN="${B_IN:-/tmp/norm_B.json}"
+
+  NORM_SRC="$ROOT/tests/fixtures/sentinel/normalized_input.ci.json"
+  require_file "$NORM_SRC"
+
+  if [[ ! -f "$A_IN" ]]; then
+    cp "$NORM_SRC" "$A_IN"
+  fi
+  if [[ ! -f "$B_IN" ]]; then
+    cp "$NORM_SRC" "$B_IN"
+  fi
+
+  # build A/B normalized inputs into TMP_BASE (CI)
+  A_IN="${A_IN:-$NORM_A}"
+  B_IN="${B_IN:-$NORM_B}"
+
+  # source normalized input fixture (repo-local)
+  NORM_SRC="${NORM_SRC:-$ROOT/var/local_llm/normalized_input.json}"
+  require_file "$NORM_SRC"
+
+  # create A/B inputs if missing (deterministic: identical content)
+  if [[ ! -f "$A_IN" ]]; then
+    cp "$NORM_SRC" "$A_IN"
+  fi
+  if [[ ! -f "$B_IN" ]]; then
+    cp "$NORM_SRC" "$B_IN"
+  fi
+
   require_file "$A_in"
   require_file "$B_in"
 
