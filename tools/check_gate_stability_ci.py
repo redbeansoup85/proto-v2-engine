@@ -6,44 +6,39 @@ import os
 from pathlib import Path
 
 import yaml
-
 from core.policy_engine import evaluate
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def load_rules(path: Path):
+def load_yaml(path: Path):
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
+def load_json(path: Path):
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
 def main() -> int:
-    policy_path = Path(os.environ.get("AURALIS_GATE_RULESET", str(ROOT / "policies/sentinel/gate_v1.yaml")))
-    if not policy_path.exists():
-        raise SystemExit(f"missing ruleset: {policy_path}")
+    # Ruleset path (overrideable)
+    ruleset_path = Path(os.environ.get("AURALIS_GATE_RULESET", str(ROOT / "policies/sentinel/gate_v1.yaml")))
+    if not ruleset_path.exists():
+        raise SystemExit(f"missing ruleset: {ruleset_path}")
+    ruleset = load_yaml(ruleset_path)
 
-    ruleset = load_rules(policy_path)
+    # Fixture paths (overrideable)
+    a_path = Path(os.environ.get("AURALIS_DRYRUN_A", str(ROOT / "tools/fixtures/dry_run_ci_A.json")))
+    b_path = Path(os.environ.get("AURALIS_DRYRUN_B", str(ROOT / "tools/fixtures/dry_run_ci_B.json")))
+    if not a_path.exists():
+        raise SystemExit(f"missing fixture A: {a_path}")
+    if not b_path.exists():
+        raise SystemExit(f"missing fixture B: {b_path}")
 
-    # Two deterministic DRY_RUN fixtures
-    a = {
-        "intent": "LONG",
-        "confidence": 0.80,
-        "risk_level": "MEDIUM",
-        "policy_refs": ["CI_FIXTURE"],
-        "mode": "DRY_RUN",
-        "engine_version": "3.0",
-        "features": {"funding": 0.0, "open_interest": 0.0},
-    }
-    b = {
-        "intent": "SHORT",
-        "confidence": 0.85,
-        "risk_level": "MEDIUM",
-        "policy_refs": ["CI_FIXTURE"],
-        "mode": "DRY_RUN",
-        "engine_version": "3.0",
-        "features": {"funding": 0.0, "open_interest": 0.0},
-    }
+    a = load_json(a_path)
+    b = load_json(b_path)
 
-    gate_a = evaluate(a.get("features", {}), ruleset)
-    gate_b = evaluate(b.get("features", {}), ruleset)
+    # Gate evaluation uses deterministic normalized features
+    gate_a = evaluate((a.get("features") or {}), ruleset)
+    gate_b = evaluate((b.get("features") or {}), ruleset)
 
     print("REPLAY_RESULT:")
     print(json.dumps({"run_id": "ci-A", "dry_run": a, "gate": gate_a}, ensure_ascii=False, indent=2))
