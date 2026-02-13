@@ -1,0 +1,24 @@
+version: "auralis_risk_rules@1.0"
+
+rules:
+  - id: "R_SOUND_SPIKE"
+    match:
+      kind: "sensor.snapshot"
+      sensor: "SOUND_PRESSURE_LEVEL"
+    threshold:
+      op: ">="
+      value: 80.0
+    emit:
+      risk: "acoustic_spike"
+      score: 0.8
+
+  - id: "R_IMPACT"
+    match:
+      kind: "sensor.snapshot"
+      sensor: "impact_mag"
+    threshold:
+      op: ">="
+      value: 8.0
+    emit:
+      risk: "physical_disturbance"
+      score: 0.85
