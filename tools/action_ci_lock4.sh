@@ -2,7 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PY="$ROOT/.venv/bin/python"
+PY="/.venv/bin/python"
+if [[ ! -x "" ]]; then
+  PY="20 20 12 61 79 80 81 701 33 98 100 204 250 395 398 399 400command -v python3 || command -v python)"
+fi
 export PYTHONPATH="$ROOT"
 
 # Determinism switch
