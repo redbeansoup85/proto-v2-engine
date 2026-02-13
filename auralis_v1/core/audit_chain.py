@@ -24,7 +24,7 @@ def append_audit(event: dict) -> dict:
                 prev_hash = prev["hash"]
 
     event = {
-        "ts": int(time.time()),
+        "ts": event.get("ts", int(time.time())),
         "auralis_genesis_hash": _genesis_hash(),
         **event,
         "prev_hash": prev_hash,

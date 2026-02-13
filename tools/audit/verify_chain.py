@@ -40,9 +40,9 @@ def main() -> int:
                 print(f"- {list(e.path)}: {e.message}")
             return 1
 
-        hp = ev.get("hash_prev")
+        hp = ev.get("hash_prev") or ev.get("prev_hash")
         if not isinstance(hp, str) or not hp.strip():
-            print(f"FAIL-CLOSED: missing hash_prev at index={idx}")
+            print(f"FAIL-CLOSED: missing hash_prev/prev_hash at index={idx}")
             return 1
 
         if idx == 0:

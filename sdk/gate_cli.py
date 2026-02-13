@@ -22,26 +22,30 @@ def _canonical_sha256(obj) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", required=True, help="normalized input json")
+    ap.add_argument("--input", required=True, help="normalized input json OR raw features json")
     ap.add_argument("--policy", required=True, help="policy yaml path")
     ap.add_argument("--out", required=True, help="output gate decision json")
+    ap.add_argument("--include-policy-capsule", action="store_true", help="include policy_capsule in output (back-compat)")
     args = ap.parse_args()
 
     inp_path = Path(args.input)
     policy_path = Path(args.policy)
     out_path = Path(args.out)
 
-    dry = json.loads(inp_path.read_text(encoding="utf-8"))
+    raw = json.loads(inp_path.read_text(encoding="utf-8"))
+    # Accept either normalized_input.v1 (features nested) or raw feature dict
+    dry = raw.get("features", raw)
+
     ruleset = load_rules(str(policy_path))
     decision = evaluate(dry, ruleset)
 
     # Attach deterministic policy fingerprints
     decision["policy_sha256"] = sha256_file(str(policy_path))
-
-    # Attach policy capsule + digest for strict stability
-    policy_capsule = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-    decision["policy_capsule"] = policy_capsule
-    decision["policy_capsule_sha256"] = _canonical_sha256(policy_capsule)
+    # Attach policy capsule + digest (optional; back-compat flag)
+    if args.include_policy_capsule:
+        policy_capsule = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+        decision["policy_capsule"] = policy_capsule
+        decision["policy_capsule_sha256"] = _canonical_sha256(policy_capsule)
 
     # Validate against v1 schema checks (python validator)
     validate_gate_decision_v1(decision)
