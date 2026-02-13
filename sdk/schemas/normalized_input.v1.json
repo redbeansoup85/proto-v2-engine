@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NormalizedInput v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["input_id", "domain", "ts", "features"],
+  "properties": {
+    "input_id": { "type": "string" },
+    "domain": { "type": "string", "enum": ["SENTINEL", "AURALIS"] },
+    "ts": { "type": "string" },
+    "features": { "type": "object" }
+  }
+}

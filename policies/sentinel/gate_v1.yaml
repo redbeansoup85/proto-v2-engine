@@ -1,0 +1,24 @@
+version: "1.0"
+name: "sentinel_gate_rules_v1"
+
+rules:
+  - id: "BLOCK_HIGH_RISK"
+    description: "Block any HIGH risk level"
+    condition:
+      risk_level: "HIGH"
+    action:
+      decision: "REJECT"
+      reason_code: "RISK_HIGH_BLOCK"
+
+  - id: "REQUIRE_CONFIDENCE_MIN"
+    description: "Reject if confidence below minimum"
+    condition:
+      confidence_lt: 0.55
+    action:
+      decision: "REJECT"
+      reason_code: "CONFIDENCE_TOO_LOW"
+
+defaults:
+  decision: "APPROVE"
+  reason_code: null
+  override_required: false
