@@ -58,7 +58,7 @@ jobs:
           bash tools/action_ci_lock10.sh
           echo "run2=OK"
 
-      - name: Optional: list TMP_BASE
+      - name: "Optional: list TMP_BASE"
         if: always()
         shell: bash
         run: |
