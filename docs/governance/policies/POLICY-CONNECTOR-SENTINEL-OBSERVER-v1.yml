@@ -1,0 +1,48 @@
+gate:
+  id: GATE-SENTINEL-INTENT-V1
+  version: v1
+  default_behavior: FAIL_CLOSED
+
+allow:
+  producer:
+    domain:
+      - sentinel
+  schema_version:
+    - sentinel_trade_intent.v1
+  mode:
+    - DRY_RUN
+
+forbidden_field_patterns:
+  - execute
+  - execution
+  - submit_intent
+  - order
+  - orders
+  - position
+  - positions
+  - qty
+  - quantity
+  - size
+  - leverage
+  - entry_price
+  - stop_loss
+  - take_profit
+  - order_type
+  - reduce_only
+  - api_key
+  - secret
+  - token
+  - private_key
+  - seed_phrase
+  - mnemonic
+
+timestamp_drift:
+  enabled: true
+  max_drift_seconds: 600
+  field_paths:
+    - producer.ts
+    - created_at
+  on_violation: FAIL_CLOSED
+
+warn_only:
+  - UNKNOWN_TIMESTAMP_FIELD

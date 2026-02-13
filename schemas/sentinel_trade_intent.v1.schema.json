@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "metaos://schemas/sentinel_trade_intent.v1",
+  "title": "sentinel_trade_intent.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer",
+    "mode",
+    "event_time",
+    "asset",
+    "timeframe",
+    "snapshot",
+    "proposal",
+    "signals"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "sentinel_trade_intent.v1" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "instance_id", "build"],
+      "properties": {
+        "domain": { "type": "string", "const": "sentinel" },
+        "instance_id": { "type": "string" },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["git_sha", "version"],
+          "properties": {
+            "git_sha": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        }
+      }
+    },
+    "mode": { "type": "string", "const": "DRY_RUN" },
+    "event_time": { "type": "string", "format": "date-time" },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol", "venue", "asset_class"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "venue": { "type": "string" },
+        "asset_class": { "type": "string" }
+      }
+    },
+    "timeframe": { "type": "string" },
+    "snapshot": { "type": "object" },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "confidence", "horizon", "thesis", "invalidations"],
+      "properties": {
+        "direction": { "type": "string" },
+        "confidence": { "type": "number" },
+        "horizon": { "type": "string" },
+        "thesis": { "type": "string" },
+        "invalidations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommended_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "trace": { "type": "object" }
+  }
+}
