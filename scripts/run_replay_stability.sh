@@ -1,24 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- TMP_BASE + NORM_A/B (must be defined before any mode function runs) ---
+# -----------------------------------------
+# Deterministic TMP_BASE (fixes inbox_path drift across runs)
+# - If METAOS_CI_DETERMINISTIC_CONSUMER=1 -> stable /tmp/metaos_ci_local.DETERMINISTIC
+# - Else: CI uses /tmp/metaos_ci_${GITHUB_RUN_ID} (stable within a run)
+# - Else: local uses mktemp (unique per run)
+# -----------------------------------------
 TMP_BASE="${TMP_BASE:-}"
-if [ -z "${TMP_BASE}" ]; then
-  if [ -n "${GITHUB_RUN_ID:-}" ]; then
+if [[ -z "${TMP_BASE}" ]]; then
+  if [[ "${METAOS_CI_DETERMINISTIC_CONSUMER:-}" =~ ^(1|true|yes|y|on)$ ]]; then
+    TMP_BASE="/tmp/metaos_ci_local.DETERMINISTIC"
+    rm -rf "$TMP_BASE"
+    mkdir -p "$TMP_BASE"
+  elif [[ -n "${GITHUB_RUN_ID:-}" ]]; then
     TMP_BASE="/tmp/metaos_ci_${GITHUB_RUN_ID}"
+    mkdir -p "$TMP_BASE"
   else
     TMP_BASE="$(mktemp -d "/tmp/metaos_ci_local.XXXXXX")"
+    mkdir -p "$TMP_BASE"
   fi
 fi
-mkdir -p "$TMP_BASE"
 export TMP_BASE
 
+# --- TMP_BASE + NORM_A/B (must be defined before any mode function runs) ---
 NORM_A="${TMP_BASE}/norm_A.json"
 NORM_B="${TMP_BASE}/norm_B.json"
 # -------------------------------------------------------------------------
 
 MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # -----------------------------------------
 # CI: capture full transcript deterministically (no hang)
 # -----------------------------------------
@@ -71,60 +83,36 @@ digest_section(){
 
 mode_ci(){
   local policy="${POLICY:-$POLICY_DEFAULT}"
-  local A_in="${A_IN:-/tmp/norm_A.json}"
-  local B_in="${B_IN:-/tmp/norm_B.json}"
-  local A_out="${A_OUT:-/tmp/gate_A.json}"
-  local B_out="${B_OUT:-/tmp/gate_B.json}"
+
+  # Use TMP_BASE for all CI artifacts to avoid /tmp drift in embedded paths
+  local A_in="${A_IN:-$NORM_A}"
+  local B_in="${B_IN:-$NORM_B}"
+  local A_out="${A_OUT:-$TMP_BASE/gate_A.json}"
+  local B_out="${B_OUT:-$TMP_BASE/gate_B.json}"
 
   require_file "$policy"
-  # CI: ensure norm_A/norm_B exist (legacy path /tmp/norm_A.json)
-  A_IN="${A_IN:-/tmp/norm_A.json}"
-  B_IN="${B_IN:-/tmp/norm_B.json}"
-
-  NORM_SRC="$ROOT/tests/fixtures/sentinel/normalized_input.ci.json"
-  require_file "$NORM_SRC"
-
-  if [[ ! -f "$A_IN" ]]; then
-    cp "$NORM_SRC" "$A_IN"
-  fi
-  if [[ ! -f "$B_IN" ]]; then
-    cp "$NORM_SRC" "$B_IN"
-  fi
-
-  # build A/B normalized inputs into TMP_BASE (CI)
-  A_IN="${A_IN:-$NORM_A}"
-  B_IN="${B_IN:-$NORM_B}"
 
   # source normalized input fixture (repo-local)
-  NORM_SRC="${NORM_SRC:-$ROOT/var/local_llm/normalized_input.json}"
+  local NORM_SRC="$ROOT/tests/fixtures/sentinel/normalized_input.ci.json"
   require_file "$NORM_SRC"
 
   # create A/B inputs if missing (deterministic: identical content)
-  if [[ ! -f "$A_IN" ]]; then
-    cp "$NORM_SRC" "$A_IN"
+  if [[ ! -f "$A_in" ]]; then
+    cp "$NORM_SRC" "$A_in"
   fi
-  if [[ ! -f "$B_IN" ]]; then
-    cp "$NORM_SRC" "$B_IN"
+  if [[ ! -f "$B_in" ]]; then
+    cp "$NORM_SRC" "$B_in"
   fi
 
   require_file "$A_in"
   require_file "$B_in"
 
-  # ----------------------------
-# CI log capture (for LOCK9 snapshot verification)
-# ----------------------------
-if [ "${1:-}" = "ci" ]; then
-  # Capture full stdout+stderr into /tmp/ci_lock_report.txt
-  exec > >(tee /tmp/ci_lock_report.txt) 2>&1
-fi
-
-echo "[CI] policy: $policy"
+  echo "[CI] policy: $policy"
 
   gate_once "$A_in" "$policy" "$A_out"
   gate_once "$B_in" "$policy" "$B_out"
 
   echo "[CI] policy_sha256 check"
-
   "$PY" - <<PY
 import json, sys
 A=json.load(open("$A_out"))
@@ -150,17 +138,25 @@ PY
     echo "[CI] policy_capsule missing; strict locked on policy_sha256 (expected)"
   fi
 
-  
   echo "[CI] determinism check (same input twice)"
 
   local S_in="${S_IN:-$B_in}"
-  local S_out1="${S_OUT1:-/tmp/gate_same_1.json}"
-  local S_out2="${S_OUT2:-/tmp/gate_same_2.json}"
+  local S_out1="${S_OUT1:-$TMP_BASE/gate_same_1.json}"
+  local S_out2="${S_OUT2:-$TMP_BASE/gate_same_2.json}"
 
   require_file "$S_in"
 
   gate_once "$S_in" "$policy" "$S_out1"
   gate_once "$S_in" "$policy" "$S_out2"
+
+  # --- legacy alias for LOCK9 parser (expects /tmp/gate_same_*.json paths in log) ---
+  local LEG_S1="/tmp/gate_same_1.json"
+  local LEG_S2="/tmp/gate_same_2.json"
+  cp "$S_out1" "$LEG_S1"
+  cp "$S_out2" "$LEG_S2"
+  echo "OK: wrote $LEG_S1"
+  echo "OK: wrote $LEG_S2"
+  # -------------------------------------------------------------------------------
 
   "$PY" - <<EOF
 import json, hashlib, sys
@@ -177,10 +173,9 @@ if a!=b:
 print("OK: deterministic")
 EOF
 
-  
   echo "[CI] audit chain verify (append_audit + verify_chain)"
 
-  export AURALIS_AUDIT_PATH="/tmp/audit_ci_chain.jsonl"
+  export AURALIS_AUDIT_PATH="$TMP_BASE/audit_ci_chain.jsonl"
   rm -f "$AURALIS_AUDIT_PATH"
 
   # Use gate_B output as payload source (already generated above)
@@ -219,23 +214,14 @@ EOF
 
   echo "[CI] LOCK9 expected snapshot verify"
   # Build current lock report from this CI log and compare with expected snapshot
-  python "$ROOT/tools/ci/build_lock_report.py" /tmp/ci_lock_report.txt /tmp/current_lock_report.json
-  python "$ROOT/tools/ci/verify_lock_report.py" "$ROOT/sdk/snapshots/expected_lock_report.ci.json" /tmp/current_lock_report.json
+  python "$ROOT/tools/ci/build_lock_report.py" "$CI_LOCK_REPORT_PATH" "$TMP_BASE/current_lock_report.json"
+  python "$ROOT/tools/ci/verify_lock_report.py" "$ROOT/sdk/snapshots/expected_lock_report.ci.json" "$TMP_BASE/current_lock_report.json"
   echo "[CI] OK: LOCK9 expected snapshot matches"
-
-
-
-
-
-
 
   echo "[CI] OK: strict policy stability locked"
 
-# --- LOCK REPORT ---
-
-echo "[CI] CI lock report"
-python "$ROOT/tools/ci/lock_report.py" /tmp/ci_lock_report.txt
-
+  echo "[CI] CI lock report"
+  python "$ROOT/tools/ci/lock_report.py" "$CI_LOCK_REPORT_PATH"
 }
 
 mode_local(){
