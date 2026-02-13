@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -25,6 +26,9 @@ def main() -> int:
         raise SystemExit(f"missing ruleset: {ruleset_path}")
     ruleset = load_yaml(ruleset_path)
 
+    # Deterministic policy hash (raw bytes)
+    policy_sha256 = hashlib.sha256(ruleset_path.read_bytes()).hexdigest()
+
     # Fixture paths (overrideable)
     a_path = Path(os.environ.get("AURALIS_DRYRUN_A", str(ROOT / "tools/fixtures/dry_run_ci_A.json")))
     b_path = Path(os.environ.get("AURALIS_DRYRUN_B", str(ROOT / "tools/fixtures/dry_run_ci_B.json")))
@@ -39,6 +43,9 @@ def main() -> int:
     # Gate evaluation uses deterministic normalized features
     gate_a = evaluate((a.get("features") or {}), ruleset)
     gate_b = evaluate((b.get("features") or {}), ruleset)
+
+    gate_a["policy_sha256"] = policy_sha256
+    gate_b["policy_sha256"] = policy_sha256
 
     print("REPLAY_RESULT:")
     print(json.dumps({"run_id": "ci-A", "dry_run": a, "gate": gate_a}, ensure_ascii=False, indent=2))
