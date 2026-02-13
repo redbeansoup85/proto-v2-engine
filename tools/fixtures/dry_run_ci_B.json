@@ -1,0 +1,9 @@
+{
+  "intent": "SHORT",
+  "confidence": 0.85,
+  "risk_level": "MEDIUM",
+  "policy_refs": ["CI_FIXTURE"],
+  "mode": "DRY_RUN",
+  "engine_version": "3.0",
+  "features": {"funding": 0.0, "open_interest": 0.0}
+}
