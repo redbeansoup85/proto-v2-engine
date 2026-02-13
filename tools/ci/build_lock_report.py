@@ -20,6 +20,9 @@ def _scrub(obj: Any) -> Any:
             }:
                 continue
 
+            if lk in {"record_hash","prev_hash","payload_hash"}:
+                continue
+
             # Drop any obvious path-ish fields
             if lk.endswith("_path") or lk.endswith("path"):
                 continue
@@ -91,6 +94,9 @@ def main():
         if s.startswith("plan1 ="):
             paths["plan"] = _parse_value(s)
 
+        if s.startswith("queue1="):
+            paths["queue"] = _parse_value(s)
+
         if s.startswith("processed1 ="):
             paths["processed"] = _parse_value(s)
 
@@ -110,7 +116,8 @@ def main():
 
     # Compute scrubbed digests (stable across TMP_BASE changes)
     fields["gate_same_digest"] = digest_json_file(paths["gate_same"])       # type: ignore[arg-type]
-    fields["plan_digest"]      = digest_json_file(paths["plan"])            # type: ignore[arg-type]
+    fields["plan_digest"]      = digest_json_file(paths["plan"])
+    fields["queue_digest"]     = digest_json_file(paths["queue"])
     fields["processed_digest"] = digest_json_file(paths["processed"])       # type: ignore[arg-type]
     fields["orch_inbox_digest"]= digest_json_file(paths["inbox"])           # type: ignore[arg-type]
     fields["orch_decision_digest"] = digest_json_file(paths["decision"])    # type: ignore[arg-type]
