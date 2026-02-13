@@ -1,0 +1,66 @@
+name: ci-lock-determinism
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lock_determinism:
+    name: lock determinism (lock5/6/10) [matrix x2 + rerun x2]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      TMP_BASE: /tmp/metaos_ci_${{ github.run_id }}_${{ matrix.shard }}
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create venv + install
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install -U pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Bash syntax check (locks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n tools/action_ci_lock5.sh
+          bash -n tools/action_ci_lock6.sh
+          bash -n tools/action_ci_lock10.sh
+
+      - name: Run lock10 twice (rerun determinism)
+        shell: bash
+        run: |
+          set -euo pipefail
+          . .venv/bin/activate
+          echo "TMP_BASE=$TMP_BASE"
+
+          bash tools/action_ci_lock10.sh
+          echo "run1=OK"
+
+          bash tools/action_ci_lock10.sh
+          echo "run2=OK"
+
+      - name: Optional: list TMP_BASE
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -la "$TMP_BASE" || true
