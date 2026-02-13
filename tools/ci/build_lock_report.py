@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+
 def _scrub(obj: Any) -> Any:
     """Remove volatile fields & normalize path-like values for stable digests."""
     if isinstance(obj, dict):
@@ -12,7 +13,7 @@ def _scrub(obj: Any) -> Any:
         for k, v in obj.items():
             lk = k.lower()
 
-            # Drop volatile keys
+            # Drop volatile keys that commonly encode time/run/path.
             if lk in {
                 "ts","timestamp","created_at","createdat","updated_at","updatedat",
                 "generated_at","generatedat","run_id","runid","github_run_id",
@@ -20,11 +21,13 @@ def _scrub(obj: Any) -> Any:
             }:
                 continue
 
+            # Hash-chain internals can legitimately vary by run depending on inputs;
+            # lock report should validate artifacts' *semantic* stability, not chain plumbing.
             if lk in {"record_hash","prev_hash","payload_hash"}:
                 continue
 
-            # Drop path-ish keys entirely
-            if lk.endswith("_path") or lk.endswith("path"):
+            # Drop any obvious path-ish fields (inbox_path, plan_path, etc.)
+            if lk.endswith("_path") or lk == "path":
                 continue
 
             out[k] = _scrub(v)
@@ -48,8 +51,7 @@ def _scrub(obj: Any) -> Any:
 
 def digest_json_file(path: str) -> str:
     p = Path(path)
-    data = p.read_text(encoding="utf-8")
-    j = json.loads(data)
+    j = json.loads(p.read_text(encoding="utf-8"))
     j2 = _scrub(j)
     b = json.dumps(j2, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(b).hexdigest()
@@ -59,7 +61,7 @@ def _parse_value(line: str) -> str:
     return line.split("=", 1)[1].strip()
 
 
-def main():
+def main() -> None:
     if len(sys.argv) != 3:
         print("usage: build_lock_report.py <ci_lock_report.txt> <out.json>", file=sys.stderr)
         raise SystemExit(2)
@@ -70,7 +72,7 @@ def main():
 
     fields: Dict[str, Any] = {"schema": "metaos_lock_report.v1"}
 
-    # Stable values already printed by CI
+    # Stable values printed by CI already
     for line in lines:
         s = line.strip()
         if s.startswith("A.policy_sha256 ="):
@@ -78,25 +80,22 @@ def main():
         if s.startswith("A.policy_capsule.digest ="):
             fields["policy_capsule_digest"] = _parse_value(s)
 
-    # Artifact paths
+    # Artifact paths (we scrub-digest these files)
     paths: Dict[str, Optional[str]] = {
-        "gate_same": None,
-        "plan": None,
-        "queue": None,
-        "processed": None,
-        "inbox": None,
-        "decision": None,
-        "outbox_item": None,
+        "gate_same": None,      # /tmp/gate_same_1.json (legacy alias)
+        "plan": None,           # plan1 path
+        "queue": None,          # queue1 path  ✅ (FIX)
+        "processed": None,      # processed1 path
+        "inbox": None,          # inbox1 path
+        "decision": None,       # dec1 path
+        "outbox_item": None,    # item1 path
     }
 
     for line in lines:
         s = line.strip()
 
-        # gate_same (allow flexible path)
-        if "gate_same_1.json" in s and s.startswith("OK: wrote"):
-            parts = s.split("OK: wrote", 1)
-            if len(parts) == 2:
-                paths["gate_same"] = parts[1].strip()
+        if s.startswith("OK: wrote /tmp/gate_same_1.json"):
+            paths["gate_same"] = "/tmp/gate_same_1.json"
 
         if s.startswith("plan1 ="):
             paths["plan"] = _parse_value(s)
@@ -116,19 +115,18 @@ def main():
         if s.startswith("item1 ="):
             paths["outbox_item"] = _parse_value(s)
 
-    # Fail-closed if any expected artifact path missing
     missing_paths = [k for k, v in paths.items() if v is None]
     if missing_paths:
         raise SystemExit("FAIL-CLOSED: missing artifact paths in CI log: " + ", ".join(missing_paths))
 
-    # Compute scrubbed digests
-    fields["gate_same_digest"] = digest_json_file(paths["gate_same"])       # type: ignore[arg-type]
-    fields["plan_digest"] = digest_json_file(paths["plan"])                 # type: ignore[arg-type]
-    fields["queue_digest"] = digest_json_file(paths["queue"])               # type: ignore[arg-type]
-    fields["processed_digest"] = digest_json_file(paths["processed"])       # type: ignore[arg-type]
-    fields["orch_inbox_digest"] = digest_json_file(paths["inbox"])          # type: ignore[arg-type]
-    fields["orch_decision_digest"] = digest_json_file(paths["decision"])    # type: ignore[arg-type]
-    fields["outbox_item_digest"] = digest_json_file(paths["outbox_item"])   # type: ignore[arg-type]
+    # Compute scrubbed digests (stable across TMP_BASE changes)
+    fields["gate_same_digest"] = digest_json_file(paths["gate_same"])        # type: ignore[arg-type]
+    fields["plan_digest"]      = digest_json_file(paths["plan"])            # type: ignore[arg-type]
+    fields["queue_digest"]     = digest_json_file(paths["queue"])           # type: ignore[arg-type]
+    fields["processed_digest"] = digest_json_file(paths["processed"])        # type: ignore[arg-type]
+    fields["orch_inbox_digest"]= digest_json_file(paths["inbox"])            # type: ignore[arg-type]
+    fields["orch_decision_digest"] = digest_json_file(paths["decision"])     # type: ignore[arg-type]
+    fields["outbox_item_digest"]   = digest_json_file(paths["outbox_item"])  # type: ignore[arg-type]
 
     required = [
         "schema",
@@ -136,13 +134,12 @@ def main():
         "policy_capsule_digest",
         "gate_same_digest",
         "plan_digest",
-        "queue_digest",
+        "queue_digest",          # ✅ (FIX)
         "processed_digest",
         "orch_inbox_digest",
         "orch_decision_digest",
         "outbox_item_digest",
     ]
-
     missing = [k for k in required if k not in fields]
     if missing:
         raise SystemExit("FAIL-CLOSED: missing fields in lock report build: " + ", ".join(missing))
@@ -151,7 +148,6 @@ def main():
         json.dumps(fields, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-
     print(f"OK: wrote {out_path}")
 
 
