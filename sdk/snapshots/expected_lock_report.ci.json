@@ -7,5 +7,6 @@
   "policy_capsule_digest": "4a0006871d53e2eea8b78ef787eedae35ccbca1922791137409bc4e593b51225",
   "policy_sha256": "f81892ddcfb980739dabf994abdac86839073c6bea308df7a7c3b3e93b31dbe1",
   "processed_digest": "8d439410c453b6ec0c0c4d7528bbb42166cc35fb593dc73fb7ac6cc54390c055",
-  "queue_digest": "7873936b33a8132c4568437c202e6c1b1604991a9f7bee3b474a0fffb36592c3"
+  "queue_digest": "7873936b33a8132c4568437c202e6c1b1604991a9f7bee3b474a0fffb36592c3",
+  "schema": "metaos_lock_report.v1"
 }
