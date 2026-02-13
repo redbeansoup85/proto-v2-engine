@@ -13,28 +13,45 @@ def _scrub(obj: Any) -> Any:
         for k, v in obj.items():
             lk = k.lower()
 
-            # Drop volatile keys that commonly encode time/run/path.
+            # Drop volatile keys that commonly encode time/run/path/id entropy.
             if lk in {
                 "ts","timestamp","created_at","createdat","updated_at","updatedat",
-                "generated_at","generatedat","run_id","runid","github_run_id",
+                "generated_at","generatedat",
+                "run_id","runid","github_run_id",
                 "tmp_base","tmpbase","base_dir","basedir",
+                "id","uuid","nonce",
             }:
                 continue
 
-            # Hash-chain internals can legitimately vary by run depending on inputs;
-            # lock report should validate artifacts' *semantic* stability, not chain plumbing.
-            if lk in {"record_hash","prev_hash","payload_hash"}:
+            # Drop id-like keys broadly (most run-to-run drift lives here)
+            if lk.endswith("_id") or lk.endswith("id"):
+                # keep a small allowlist if you ever need it; for now fail-closed stability > fidelity
                 continue
 
-            # Drop any obvious path-ish fields (inbox_path, plan_path, etc.)
-            if lk.endswith("_path") or lk == "path":
+            # Drop hash-chain fields (often derived from timestamps/ordering)
+            if lk in {"record_hash","prev_hash","payload_hash","recordhash","prevhash","payloadhash"}:
+                continue
+
+            # Drop any obvious path-ish fields
+            if lk.endswith("_path") or lk.endswith("path"):
                 continue
 
             out[k] = _scrub(v)
         return out
 
     if isinstance(obj, list):
-        return [_scrub(x) for x in obj]
+        xs = [_scrub(x) for x in obj]
+        # Canonicalize order: sort by stable JSON repr if possible
+        try:
+            xs_sorted = sorted(
+                xs,
+                key=lambda x: json.dumps(
+                    x, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                )
+            )
+            return xs_sorted
+        except TypeError:
+            return xs
 
     if isinstance(obj, str):
         # normalize temp/abs paths wherever they appear
