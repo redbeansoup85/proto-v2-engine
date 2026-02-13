@@ -1,0 +1,22 @@
+{
+  "schema_version": "sentinel_trade_intent.v1",
+  "producer": {
+    "domain": "sentinel",
+    "instance_id": "sentinel-local-01",
+    "build": { "git_sha": "abc1234", "version": "0.1.0" }
+  },
+  "mode": "DRY_RUN",
+  "event_time": "2026-02-10T00:00:00Z",
+  "asset": { "symbol": "ETHUSDT", "venue": "BINANCE", "asset_class": "CRYPTO_PERP" },
+  "timeframe": "15m",
+  "snapshot": {},
+  "proposal": {
+    "direction": "BEARISH",
+    "confidence": 0.6,
+    "horizon": "INTRADAY",
+    "thesis": "Should fail",
+    "invalidations": ["n/a"],
+    "qty": 1
+  },
+  "signals": []
+}

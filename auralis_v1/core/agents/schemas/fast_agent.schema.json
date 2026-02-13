@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FastAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "normalized_text",
+    "highlights"
+  ],
+  "properties": {
+    "summary": { "type": "string" },
+    "normalized_text": { "type": "string" },
+    "highlights": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
