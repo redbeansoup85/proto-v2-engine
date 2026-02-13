@@ -2,22 +2,42 @@
 set -euo pipefail
 
 # -----------------------------------------
-# Deterministic TMP_BASE (fixes inbox_path drift across runs)
-# - If METAOS_CI_DETERMINISTIC_CONSUMER=1 -> stable /tmp/metaos_ci_local.DETERMINISTIC
-# - Else: CI uses /tmp/metaos_ci_${GITHUB_RUN_ID} (stable within a run)
-# - Else: local uses mktemp (unique per run)
+# Deterministic TMP_BASE (prevents run-id path drift across CI runs)
+#
+# Policy:
+# - ci   : always use stable /tmp/metaos_ci_fixed (and wipe it each run)
+# - local: unique mktemp dir
+#
+# Rationale:
+# - CI logs previously contained /tmp/metaos_ci_${GITHUB_RUN_ID}/... and those paths can leak into
+#   processed/decision/outbox JSON or into the CI transcript parsed by build_lock_report.py,
+#   causing LOCK9 mismatches across runs.
 # -----------------------------------------
+MODE="${1:-}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+die(){ echo "ERROR: $*" >&2; exit 1; }
+require_file(){ [[ -f "$1" ]] || die "missing file: $1"; }
+
+# CI transcript path (must be decided before redirect)
+if [[ "${MODE:-}" == "ci" ]]; then
+  : "${CI_LOCK_REPORT_PATH:=/tmp/ci_lock_report.txt}"
+  rm -f "$CI_LOCK_REPORT_PATH"
+  # capture stdout+stderr; do NOT block waiting for stdin
+  exec > >(tee -a "$CI_LOCK_REPORT_PATH") 2>&1
+fi
+
+# TMP_BASE resolution (AFTER MODE known, BEFORE any artifacts)
 TMP_BASE="${TMP_BASE:-}"
 if [[ -z "${TMP_BASE}" ]]; then
-  if [[ "${METAOS_CI_DETERMINISTIC_CONSUMER:-}" =~ ^(1|true|yes|y|on)$ ]]; then
-    TMP_BASE="/tmp/metaos_ci_local.DETERMINISTIC"
+  if [[ "${MODE:-}" == "ci" ]]; then
+    # Force deterministic behavior in CI unless explicitly overridden
+    export METAOS_CI_DETERMINISTIC_CONSUMER="${METAOS_CI_DETERMINISTIC_CONSUMER:-1}"
+    TMP_BASE="/tmp/metaos_ci_fixed"
     rm -rf "$TMP_BASE"
     mkdir -p "$TMP_BASE"
-  elif [[ -n "${GITHUB_RUN_ID:-}" ]]; then
-    TMP_BASE="/tmp/metaos_ci_${GITHUB_RUN_ID}"
-    mkdir -p "$TMP_BASE"
   else
-    TMP_BASE="$(mktemp -d "/tmp/metaos_ci_local.XXXXXX")"
+    TMP_BASE="$(mktemp -d "/tmp/metaos_local.XXXXXX")"
     mkdir -p "$TMP_BASE"
   fi
 fi
@@ -28,19 +48,6 @@ NORM_A="${TMP_BASE}/norm_A.json"
 NORM_B="${TMP_BASE}/norm_B.json"
 # -------------------------------------------------------------------------
 
-MODE="${1:-}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# -----------------------------------------
-# CI: capture full transcript deterministically (no hang)
-# -----------------------------------------
-if [[ "${MODE:-}" == "ci" ]]; then
-  : "${CI_LOCK_REPORT_PATH:=/tmp/ci_lock_report.txt}"
-  rm -f "$CI_LOCK_REPORT_PATH"
-  # capture stdout+stderr; do NOT block waiting for stdin
-  exec > >(tee -a "$CI_LOCK_REPORT_PATH") 2>&1
-fi
-
 PY="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
 # CI runners usually do not have repo-local .venv; fall back to system python
 if [[ ! -x "$PY" ]]; then
@@ -50,9 +57,6 @@ fi
 export PYTHONPATH="$ROOT"
 
 POLICY_DEFAULT="$ROOT/policies/sentinel/gate_v1.yaml"
-
-die(){ echo "ERROR: $*" >&2; exit 1; }
-require_file(){ [[ -f "$1" ]] || die "missing file: $1"; }
 
 gate_once(){
   local in_json="$1"
@@ -84,7 +88,7 @@ digest_section(){
 mode_ci(){
   local policy="${POLICY:-$POLICY_DEFAULT}"
 
-  # Use TMP_BASE for all CI artifacts to avoid /tmp drift in embedded paths
+  # Use TMP_BASE for all CI artifacts
   local A_in="${A_IN:-$NORM_A}"
   local B_in="${B_IN:-$NORM_B}"
   local A_out="${A_OUT:-$TMP_BASE/gate_A.json}"
@@ -97,17 +101,15 @@ mode_ci(){
   require_file "$NORM_SRC"
 
   # create A/B inputs if missing (deterministic: identical content)
-  if [[ ! -f "$A_in" ]]; then
-    cp "$NORM_SRC" "$A_in"
-  fi
-  if [[ ! -f "$B_in" ]]; then
-    cp "$NORM_SRC" "$B_in"
-  fi
+  if [[ ! -f "$A_in" ]]; then cp "$NORM_SRC" "$A_in"; fi
+  if [[ ! -f "$B_in" ]]; then cp "$NORM_SRC" "$B_in"; fi
 
   require_file "$A_in"
   require_file "$B_in"
 
   echo "[CI] policy: $policy"
+  echo "[CI] TMP_BASE=$TMP_BASE"
+  echo "[CI] METAOS_CI_DETERMINISTIC_CONSUMER=${METAOS_CI_DETERMINISTIC_CONSUMER:-}"
 
   gate_once "$A_in" "$policy" "$A_out"
   gate_once "$B_in" "$policy" "$B_out"
@@ -150,6 +152,7 @@ PY
   gate_once "$S_in" "$policy" "$S_out2"
 
   # --- legacy alias for LOCK9 parser (expects /tmp/gate_same_*.json paths in log) ---
+  # Keep these fixed paths (NOT run-id paths) to avoid digest drift.
   local LEG_S1="/tmp/gate_same_1.json"
   local LEG_S2="/tmp/gate_same_2.json"
   cp "$S_out1" "$LEG_S1"
@@ -212,8 +215,13 @@ EOF
   bash "$ROOT/tools/action_ci_lock8.sh"
   echo "[CI] OK: LOCK8 orch outbox+audit verified"
 
+  echo "[CI] scan volatile tokens in artifacts (TMP_BASE + log)"
+  echo "[CI] TMP_BASE=$TMP_BASE"
+  echo "[CI] CI_LOCK_REPORT_PATH=$CI_LOCK_REPORT_PATH"
+  rg -n "GITHUB_RUN_ID|metaos_ci_|/tmp/|/home/runner/|run_id|job_id|trace_id|span_id|uuid|nonce|timestamp|created_at|started_at" -S "$TMP_BASE" || true
+  rg -n "GITHUB_RUN_ID|metaos_ci_|/tmp/|/home/runner/|run_id|job_id|trace_id|span_id|uuid|nonce|timestamp|created_at|started_at" -S "$CI_LOCK_REPORT_PATH" || true
+
   echo "[CI] LOCK9 expected snapshot verify"
-  # Build current lock report from this CI log and compare with expected snapshot
   python "$ROOT/tools/ci/build_lock_report.py" "$CI_LOCK_REPORT_PATH" "$TMP_BASE/current_lock_report.json"
   python "$ROOT/tools/ci/verify_lock_report.py" "$ROOT/sdk/snapshots/expected_lock_report.ci.json" "$TMP_BASE/current_lock_report.json"
   echo "[CI] OK: LOCK9 expected snapshot matches"

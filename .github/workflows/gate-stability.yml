@@ -12,6 +12,7 @@ jobs:
       PYTHONPATH: .
       AURALIS_AUDIT_PATH: var/logs/audit_sentinel.jsonl
       AURALIS_GENESIS_PATH: var/seal/GENESIS.yaml
+      METAOS_CI_DETERMINISTIC_CONSUMER: "1"   # ✅ 추가 (CI determinism 강제)
 
     steps:
       - name: Checkout
@@ -46,6 +47,8 @@ jobs:
 
       - name: Run replay A/B + strict gate stability
         shell: bash
+        env:
+          METAOS_CI_DETERMINISTIC_CONSUMER: "1"
         run: |
           set -euo pipefail
           bash scripts/run_replay_stability.sh ci

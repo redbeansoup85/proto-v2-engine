@@ -7,6 +7,7 @@ import json
 import os
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.C_action.contracts import DeliveryPlan
@@ -30,13 +31,31 @@ def _save_json(path: str, obj: Any) -> None:
 def _now_iso() -> str:
     # CI determinism lock (optional)
     # Enable with: METAOS_CI_DETERMINISTIC_CONSUMER=1
-    if os.getenv("METAOS_CI_DETERMINISTIC_CONSUMER", "").strip().lower() in {"1","true","yes","y","on"}:
+    if os.getenv("METAOS_CI_DETERMINISTIC_CONSUMER", "").strip().lower() in {"1", "true", "yes", "y", "on"}:
         return "1970-01-01T00:00:00Z"
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _sha8(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:8]
+
+
+def _stable_idempotency_seed(queue_item_path: str) -> str:
+    """
+    Deterministic idempotency seed across runs.
+
+    DO NOT hash full queue_item_path because CI uses temp dirs like:
+      /tmp/metaos_ci_local.<RAND>/...
+    which would change every run and break replay stability (LOCK9).
+
+    Preferred stable seed:
+      - queue filename stem, e.g. dp_3ca5c80427e7097f from dp_3ca5c80427e7097f.json
+    """
+    try:
+        return Path(queue_item_path).stem  # stable across temp roots
+    except Exception:
+        # ultra-safe fallback (still avoids temp root influence)
+        return os.path.splitext(os.path.basename(queue_item_path))[0]
 
 
 def _safe_id(plan_id: Optional[str], queue_item_path: str) -> str:
@@ -113,7 +132,8 @@ def consume_one(queue_item_path: str, base_dir: str = "logs/queues") -> str:
                 "notes": [],
             },
             "plan": asdict(plan),
-            "idempotency_key": _sha8(queue_item_path),
+            # ✅ Deterministic across runs: dp_id seed (filename stem), not temp path
+            "idempotency_key": _sha8(_stable_idempotency_seed(queue_item_path)),
         }
     )
 
