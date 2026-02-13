@@ -5,19 +5,22 @@ import json
 import os
 from pathlib import Path
 
-from sdk.gate_cli import load_rules
-from core.policy_engine import evaluate
+import yaml
 
+from core.policy_engine import evaluate
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def load_rules(path: Path):
+    with path.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
 def main() -> int:
-    # default paths (can be overridden by env)
     policy_path = Path(os.environ.get("AURALIS_GATE_RULESET", str(ROOT / "policies/sentinel/gate_v1.yaml")))
     if not policy_path.exists():
         raise SystemExit(f"missing ruleset: {policy_path}")
 
-    ruleset = load_rules(str(policy_path))
+    ruleset = load_rules(policy_path)
 
     # Two deterministic DRY_RUN fixtures
     a = {
@@ -39,17 +42,14 @@ def main() -> int:
         "features": {"funding": 0.0, "open_interest": 0.0},
     }
 
-    # Evaluate gate on deterministic features (policy_engine.evaluate expects features dict)
     gate_a = evaluate(a.get("features", {}), ruleset)
     gate_b = evaluate(b.get("features", {}), ruleset)
 
-    # Print in the exact format expected by tools/check_gate_stability.py
     print("REPLAY_RESULT:")
     print(json.dumps({"run_id": "ci-A", "dry_run": a, "gate": gate_a}, ensure_ascii=False, indent=2))
     print("REPLAY_RESULT:")
     print(json.dumps({"run_id": "ci-B", "dry_run": b, "gate": gate_b}, ensure_ascii=False, indent=2))
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
