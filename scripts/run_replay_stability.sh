@@ -11,6 +11,7 @@ if [ -z "${TMP_BASE}" ]; then
   fi
 fi
 mkdir -p "$TMP_BASE"
+export TMP_BASE
 
 NORM_A="${TMP_BASE}/norm_A.json"
 NORM_B="${TMP_BASE}/norm_B.json"

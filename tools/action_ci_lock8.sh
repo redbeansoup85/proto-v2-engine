@@ -8,58 +8,50 @@ if [[ ! -x "$PY" ]]; then
 fi
 export PYTHONPATH="$ROOT"
 
-TMP_BASE="${TMP_BASE:-}"
-if [[ -z "${TMP_BASE}" ]]; then
-  if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
-    TMP_BASE="/tmp/metaos_ci_${GITHUB_RUN_ID}"
-  else
-    TMP_BASE="$(mktemp -d "/tmp/metaos_ci_local.XXXXXX")"
-  fi
-fi
+# TMP_BASE must be inherited from caller (run_replay_stability.sh)
+: "${TMP_BASE:=/tmp/metaos_ci_local}"
 mkdir -p "$TMP_BASE"
-export TMP_BASE
 
+# Determinism switches (inherit prior locks)
 export METAOS_CI_DETERMINISTIC_PLAN=1
 export METAOS_CI_DETERMINISTIC_CONSUMER=1
 export METAOS_CI_DETERMINISTIC_ORCH_PAYLOAD=1
 export METAOS_CI_DETERMINISTIC_ORCH_DECISION=1
 export METAOS_CI_DETERMINISTIC_ORCH_OUTBOX=1
 
+# Ensure LOCK7 produces a deterministic decision + audit
 bash "$ROOT/tools/action_ci_lock7.sh" >/dev/null
 
 DEC="$("$PY" - <<PY
-import glob, os, sys
-tmp_base=os.environ.get("TMP_BASE","")
-if not tmp_base:
-    raise SystemExit("FAIL-CLOSED: TMP_BASE env missing")
-
-pattern=os.path.join(tmp_base,"orch_decisions_ci","*","*.json")
-paths=sorted(glob.glob(pattern))
+import glob, sys
+paths=sorted(glob.glob("$TMP_BASE/orch_decisions_ci/*/*.json"))
 if not paths:
-    raise SystemExit(f"FAIL-CLOSED: no orch decision json found: {pattern}")
+    sys.exit("FAIL-CLOSED: no orch decision found under TMP_BASE")
 print(paths[0])
 PY
 )"
 
-cp "$DEC" /tmp/dec_1.json
-cp "$DEC" /tmp/dec_2.json
+# Split outbox twice from copies
+cp "$DEC" "$TMP_BASE/dec_1.json"
+cp "$DEC" "$TMP_BASE/dec_2.json"
 
-rm -f /tmp/outbox_list_1.txt /tmp/outbox_list_2.txt
+rm -f "$TMP_BASE/outbox_list_1.txt" "$TMP_BASE/outbox_list_2.txt"
 
-$PY - <<'PY'
+"$PY" - <<PY
 from core.orchestrator.outbox import split_outbox_from_decision
-import os
-base=os.environ["TMP_BASE"]
-
-paths = split_outbox_from_decision("/tmp/dec_1.json", outbox_base_dir=f"{base}/orch_outbox_ci_1")
-open("/tmp/outbox_list_1.txt","w",encoding="utf-8").write("\n".join(paths)+("\n" if paths else ""))
-
-paths = split_outbox_from_decision("/tmp/dec_2.json", outbox_base_dir=f"{base}/orch_outbox_ci_2")
-open("/tmp/outbox_list_2.txt","w",encoding="utf-8").write("\n".join(paths)+("\n" if paths else ""))
+paths = split_outbox_from_decision("$TMP_BASE/dec_1.json", outbox_base_dir="$TMP_BASE/orch_outbox_ci_1")
+open("$TMP_BASE/outbox_list_1.txt","w",encoding="utf-8").write("\n".join(paths)+("\n" if paths else ""))
 PY
 
-$PY - <<'PY'
-import hashlib, sys
+"$PY" - <<PY
+from core.orchestrator.outbox import split_outbox_from_decision
+paths = split_outbox_from_decision("$TMP_BASE/dec_2.json", outbox_base_dir="$TMP_BASE/orch_outbox_ci_2")
+open("$TMP_BASE/outbox_list_2.txt","w",encoding="utf-8").write("\n".join(paths)+("\n" if paths else ""))
+PY
+
+# Determinism check: compare per-index digest
+"$PY" - <<PY
+import hashlib
 from pathlib import Path
 
 def read_list(path: str):
@@ -71,8 +63,8 @@ def read_list(path: str):
 def digest(path: str) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
-outs1 = read_list("/tmp/outbox_list_1.txt")
-outs2 = read_list("/tmp/outbox_list_2.txt")
+outs1 = read_list("$TMP_BASE/outbox_list_1.txt")
+outs2 = read_list("$TMP_BASE/outbox_list_2.txt")
 
 print("outbox.count.1 =", len(outs1))
 print("outbox.count.2 =", len(outs2))
@@ -91,7 +83,8 @@ for a,b in zip(outs1, outs2):
 print("OK: outbox items deterministic")
 PY
 
-export AURALIS_AUDIT_PATH="/tmp/audit_ci_lock8.jsonl"
+# AuditChain seal: append all outbox items deterministically then verify
+export AURALIS_AUDIT_PATH="$TMP_BASE/audit_ci_lock8.jsonl"
 rm -f "$AURALIS_AUDIT_PATH"
 
 i=0
@@ -99,12 +92,10 @@ while IFS= read -r p; do
   p="$(echo "$p" | tr -d '\r')"
   [ -z "$p" ] && continue
   i=$((i+1))
-  $PY "$ROOT/tools/audit_append_orch_outbox_chain.py" \
+  "$PY" "$ROOT/tools/audit_append_orch_outbox_chain.py" \
     --outbox "$p" --ts 0 --event-id "CI:ORCH_OUTBOX_ITEM:SENTINEL:$i" >/dev/null
-done < /tmp/outbox_list_1.txt
+done < "$TMP_BASE/outbox_list_1.txt"
 
-$PY "$ROOT/tools/audit/verify_chain.py" \
-  --schema "$ROOT/sdk/schemas/audit_event.v1.json" \
-  --chain "$AURALIS_AUDIT_PATH"
+"$PY" "$ROOT/tools/audit/verify_chain.py" --schema "$ROOT/sdk/schemas/audit_event.v1.json" --chain "$AURALIS_AUDIT_PATH"
 
 echo "OK: LOCK8 orch outbox + audit verified"
