@@ -51,5 +51,9 @@ Sentinel scoring snapshot v0.2:
 - Build: `python tools/sentinel_score_snapshot_v0_2.py --symbol BTCUSDT --out /tmp/metaos_snapshots/BTCUSDT/snapshot_001.json`
 - Selftest: `python tools/selftest_sentinel_score_snapshot_v0_2.py`
 - Snapshot path default example: `/tmp/metaos_snapshots/<SYMBOL>/snapshot_001.json`
+<<<<<<< HEAD
 - Multi-symbol loop: `SYMBOLS=BTCUSDT,ETHUSDT scripts/run_sentinel_live_loop.sh`
 - Summary output: `/tmp/metaos_domain_events/_summary/summary_<TS>.json`
+=======
+- Live loop multi-symbol: `SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT scripts/run_sentinel_live_loop.sh`
+>>>>>>> origin/main
