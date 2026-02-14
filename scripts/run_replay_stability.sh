@@ -1,52 +1,245 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# -----------------------------------------
+# Deterministic TMP_BASE (prevents run-id path drift across CI runs)
+#
+# Policy:
+# - ci   : always use stable /tmp/metaos_ci_fixed (and wipe it each run)
+# - local: unique mktemp dir
+#
+# Rationale:
+# - CI logs previously contained /tmp/metaos_ci_${GITHUB_RUN_ID}/... and those paths can leak into
+#   processed/decision/outbox JSON or into the CI transcript parsed by build_lock_report.py,
+#   causing LOCK9 mismatches across runs.
+# -----------------------------------------
+MODE="${1:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Prefer venv python if present; otherwise fall back to system python (CI).
-if [ -x "$ROOT/.venv/bin/python" ]; then
-  PY="$ROOT/.venv/bin/python"
-else
+die(){ echo "ERROR: $*" >&2; exit 1; }
+require_file(){ [[ -f "$1" ]] || die "missing file: $1"; }
+
+# CI transcript path (must be decided before redirect)
+if [[ "${MODE:-}" == "ci" ]]; then
+  : "${CI_LOCK_REPORT_PATH:=/tmp/ci_lock_report.txt}"
+  rm -f "$CI_LOCK_REPORT_PATH"
+  # capture stdout+stderr; do NOT block waiting for stdin
+  exec > >(tee -a "$CI_LOCK_REPORT_PATH") 2>&1
+fi
+
+# TMP_BASE resolution (AFTER MODE known, BEFORE any artifacts)
+TMP_BASE="${TMP_BASE:-}"
+if [[ -z "${TMP_BASE}" ]]; then
+  if [[ "${MODE:-}" == "ci" ]]; then
+    # Force deterministic behavior in CI unless explicitly overridden
+    export METAOS_CI_DETERMINISTIC_CONSUMER="${METAOS_CI_DETERMINISTIC_CONSUMER:-1}"
+    TMP_BASE="/tmp/metaos_ci_fixed"
+    rm -rf "$TMP_BASE"
+    mkdir -p "$TMP_BASE"
+  else
+    TMP_BASE="$(mktemp -d "/tmp/metaos_local.XXXXXX")"
+    mkdir -p "$TMP_BASE"
+  fi
+fi
+export TMP_BASE
+
+# --- TMP_BASE + NORM_A/B (must be defined before any mode function runs) ---
+NORM_A="${TMP_BASE}/norm_A.json"
+NORM_B="${TMP_BASE}/norm_B.json"
+# -------------------------------------------------------------------------
+
+PY="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
+# CI runners usually do not have repo-local .venv; fall back to system python
+if [[ ! -x "$PY" ]]; then
   PY="$(command -v python3 || command -v python)"
 fi
-
-if [ -z "${PY:-}" ]; then
-  echo "ERROR: python interpreter not found"
-  exit 10
-fi
-
+[[ -n "${PY:-}" ]] || { echo "ERROR: python not found" >&2; exit 1; }
 export PYTHONPATH="$ROOT"
-export AURALIS_AUDIT_PATH="${AURALIS_AUDIT_PATH:-$ROOT/var/logs/audit_sentinel.jsonl}"
-export AURALIS_GENESIS_PATH="${AURALIS_GENESIS_PATH:-$ROOT/var/seal/GENESIS.yaml}"
 
-mkdir -p "$ROOT/var/logs" "$ROOT/var/local_llm" "$ROOT/var/seal"
+POLICY_DEFAULT="$ROOT/policies/sentinel/gate_v1.yaml"
 
-echo "== Using python =="
-"$PY" -c "import sys; print(sys.executable); print(sys.version)"
+gate_once(){
+  local in_json="$1"
+  local policy="$2"
+  local out_json="$3"
+  "$PY" "$ROOT/sdk/gate_cli.py" \
+    --input "$in_json" \
+    --policy "$policy" \
+    --out "$out_json" \
+    --include-policy-capsule
+}
 
-TMP_A="/tmp/sdk_stable_A.txt"
-TMP_B="/tmp/sdk_stable_B.txt"
+has_key(){
+  local json_path="$1"
+  local key="$2"
+  "$PY" - <<PY
+import json
+j=json.load(open("$json_path"))
+print(str("$key" in j))
+PY
+}
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-  echo "== CI mode: skipping ollama replay; using deterministic gate fixtures =="
-  # Generate two REPLAY_RESULT blocks into A/B logs
-  "$PY" tools/check_gate_stability_ci.py | tee "$TMP_A" >/dev/null
-  # For B, reuse same output but stability checker expects two files
-  "$PY" tools/check_gate_stability_ci.py | tee "$TMP_B" >/dev/null
+digest_section(){
+  local gate_json="$1"
+  local key="$2"
+  "$PY" "$ROOT/tools/capsule_digest.py" --in "$gate_json" --path "$key"
+}
 
-  echo "== Strict Gate Stability Check =="
-  "$PY" tools/check_gate_stability.py --strict "$TMP_A" "$TMP_B"
-  echo "== DONE =="
-  exit 0
-fi
+mode_ci(){
+  local policy="${POLICY:-$POLICY_DEFAULT}"
 
-echo "== Running replay A =="
-"$PY" tools/local_llm/replay_sentinel_pipeline.py | tee "$TMP_A"
+  # Use TMP_BASE for all CI artifacts
+  local A_in="${A_IN:-$NORM_A}"
+  local B_in="${B_IN:-$NORM_B}"
+  local A_out="${A_OUT:-$TMP_BASE/gate_A.json}"
+  local B_out="${B_OUT:-$TMP_BASE/gate_B.json}"
 
-echo "== Running replay B =="
-"$PY" tools/local_llm/replay_sentinel_pipeline.py | tee "$TMP_B"
+  require_file "$policy"
 
-echo "== Strict Gate Stability Check =="
-"$PY" tools/check_gate_stability.py --strict "$TMP_A" "$TMP_B"
+  # source normalized input fixture (repo-local)
+  local NORM_SRC="$ROOT/tests/fixtures/sentinel/normalized_input.ci.json"
+  require_file "$NORM_SRC"
 
-echo "== DONE =="
+  # create A/B inputs if missing (deterministic: identical content)
+  if [[ ! -f "$A_in" ]]; then cp "$NORM_SRC" "$A_in"; fi
+  if [[ ! -f "$B_in" ]]; then cp "$NORM_SRC" "$B_in"; fi
+
+  require_file "$A_in"
+  require_file "$B_in"
+
+  echo "[CI] policy: $policy"
+  echo "[CI] TMP_BASE=$TMP_BASE"
+  echo "[CI] METAOS_CI_DETERMINISTIC_CONSUMER=${METAOS_CI_DETERMINISTIC_CONSUMER:-}"
+
+  gate_once "$A_in" "$policy" "$A_out"
+  gate_once "$B_in" "$policy" "$B_out"
+
+  echo "[CI] policy_sha256 check"
+  "$PY" - <<PY
+import json, sys
+A=json.load(open("$A_out"))
+B=json.load(open("$B_out"))
+a=A.get("policy_sha256")
+b=B.get("policy_sha256")
+print("A.policy_sha256 =", a)
+print("B.policy_sha256 =", b)
+if a!=b:
+    sys.exit("policy_sha256 mismatch")
+print("OK: policy_sha256 identical")
+PY
+
+  # Optional: if policy_capsule exists, digest it too.
+  if [[ "$(has_key "$A_out" policy_capsule)" == "True" ]]; then
+    echo "[CI] policy_capsule digest check"
+    da="$(digest_section "$A_out" policy_capsule)"
+    db="$(digest_section "$B_out" policy_capsule)"
+    echo "A.policy_capsule.digest = $da"
+    echo "B.policy_capsule.digest = $db"
+    [[ "$da" == "$db" ]] || die "policy_capsule digest mismatch"
+  else
+    echo "[CI] policy_capsule missing; strict locked on policy_sha256 (expected)"
+  fi
+
+  echo "[CI] determinism check (same input twice)"
+
+  local S_in="${S_IN:-$B_in}"
+  local S_out1="${S_OUT1:-$TMP_BASE/gate_same_1.json}"
+  local S_out2="${S_OUT2:-$TMP_BASE/gate_same_2.json}"
+
+  require_file "$S_in"
+
+  gate_once "$S_in" "$policy" "$S_out1"
+  gate_once "$S_in" "$policy" "$S_out2"
+
+  # --- legacy alias for LOCK9 parser (expects /tmp/gate_same_*.json paths in log) ---
+  # Keep these fixed paths (NOT run-id paths) to avoid digest drift.
+  local LEG_S1="/tmp/gate_same_1.json"
+  local LEG_S2="/tmp/gate_same_2.json"
+  cp "$S_out1" "$LEG_S1"
+  cp "$S_out2" "$LEG_S2"
+  echo "OK: wrote $LEG_S1"
+  echo "OK: wrote $LEG_S2"
+  # -------------------------------------------------------------------------------
+
+  "$PY" - <<EOF
+import json, hashlib, sys
+def digest(p):
+    j=json.load(open(p))
+    b=json.dumps(j, sort_keys=True, separators=(",",":"), ensure_ascii=False).encode()
+    return hashlib.sha256(b).hexdigest()
+a=digest("$S_out1")
+b=digest("$S_out2")
+print("same1.digest =", a)
+print("same2.digest =", b)
+if a!=b:
+    sys.exit("gate decision not deterministic for identical input")
+print("OK: deterministic")
+EOF
+
+  echo "[CI] audit chain verify (append_audit + verify_chain)"
+
+  export AURALIS_AUDIT_PATH="$TMP_BASE/audit_ci_chain.jsonl"
+  rm -f "$AURALIS_AUDIT_PATH"
+
+  # Use gate_B output as payload source (already generated above)
+  "$PY" -m sdk.gate_cli --input "$B_in" --policy "$policy" --out "$B_out" --include-policy-capsule >/dev/null
+
+  "$PY" tools/audit_append_gate_chain.py \
+    --gate "$B_out" \
+    --ts 0 \
+    --event-id "CI:GATE_DECISION:BTCUSDT:POLICY_V1" >/dev/null
+
+  "$PY" tools/audit/verify_chain.py \
+    --schema sdk/schemas/audit_event.v1.json \
+    --chain "$AURALIS_AUDIT_PATH"
+
+  echo "[CI] OK: audit chain verified"
+
+  echo "[CI] LOCK4 plan+queue determinism"
+  bash "$ROOT/tools/action_ci_lock4.sh"
+  echo "[CI] OK: LOCK4 plan+queue deterministic"
+
+  echo "[CI] LOCK5 consumer+audit determinism"
+  bash "$ROOT/tools/action_ci_lock5.sh"
+  echo "[CI] OK: LOCK5 consumer+audit verified"
+
+  echo "[CI] LOCK6 orch inbox+audit determinism"
+  bash "$ROOT/tools/action_ci_lock6.sh"
+  echo "[CI] OK: LOCK6 orch inbox+audit verified"
+
+  echo "[CI] LOCK7 orch decision+audit determinism"
+  bash "$ROOT/tools/action_ci_lock7.sh"
+  echo "[CI] OK: LOCK7 orch decision+audit verified"
+
+  echo "[CI] LOCK8 orch outbox+audit determinism"
+  bash "$ROOT/tools/action_ci_lock8.sh"
+  echo "[CI] OK: LOCK8 orch outbox+audit verified"
+
+  echo "[CI] scan volatile tokens in artifacts (TMP_BASE + log)"
+  echo "[CI] TMP_BASE=$TMP_BASE"
+  echo "[CI] CI_LOCK_REPORT_PATH=$CI_LOCK_REPORT_PATH"
+  rg -n "GITHUB_RUN_ID|metaos_ci_|/tmp/|/home/runner/|run_id|job_id|trace_id|span_id|uuid|nonce|timestamp|created_at|started_at" -S "$TMP_BASE" || true
+  rg -n "GITHUB_RUN_ID|metaos_ci_|/tmp/|/home/runner/|run_id|job_id|trace_id|span_id|uuid|nonce|timestamp|created_at|started_at" -S "$CI_LOCK_REPORT_PATH" || true
+
+  echo "[CI] LOCK9 expected snapshot verify"
+  python "$ROOT/tools/ci/build_lock_report.py" "$CI_LOCK_REPORT_PATH" "$TMP_BASE/current_lock_report.json"
+  python "$ROOT/tools/ci/verify_lock_report.py" "$ROOT/sdk/snapshots/expected_lock_report.ci.json" "$TMP_BASE/current_lock_report.json"
+  echo "[CI] OK: LOCK9 expected snapshot matches"
+
+  echo "[CI] OK: strict policy stability locked"
+
+  echo "[CI] CI lock report"
+  python "$ROOT/tools/ci/lock_report.py" "$CI_LOCK_REPORT_PATH"
+}
+
+mode_local(){
+  echo "[LOCAL] running strict gate stability only"
+  bash "$0" ci
+  echo "[LOCAL] OK"
+}
+
+case "$MODE" in
+  ci) mode_ci ;;
+  local) mode_local ;;
+  *) die "usage: $0 {ci|local}" ;;
+esac

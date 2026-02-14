@@ -1,0 +1,10 @@
+{
+  "input_id": "3ce5e713-0be5-4e03-b696-d050c8fb26a1",
+  "domain": "SENTINEL",
+  "ts": "2026-02-13T10:40:59.758391+00:00",
+  "features": {
+    "intent": "HOLD",
+    "confidence": 0.8,
+    "risk_level": "LOW"
+  }
+}

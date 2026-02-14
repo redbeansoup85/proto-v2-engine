@@ -17,7 +17,7 @@ def _extract_replay_result(text: str) -> Dict[str, Any]:
     if idx < 0:
         raise ValueError("NO REPLAY_RESULT")
 
-    tail = text[idx + len(marker):].strip()
+    tail = text[idx + len(marker) :].strip()
 
     start = tail.find("{")
     if start < 0:
@@ -61,6 +61,7 @@ def _strict_gate_capsule(rr: Dict[str, Any]) -> Dict[str, Any]:
         "override_required": gate.get("override_required"),
         "policy_id": gate.get("policy_id"),
         "policy_version": gate.get("policy_version"),
+        "policy_sha256": gate.get("policy_sha256", "n/a"),
         "reason_codes_sorted": reason_codes_sorted,
     }
 

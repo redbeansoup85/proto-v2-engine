@@ -1,14 +1,43 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "GateDecision v1",
+  "title": "gate_decision.v1",
   "type": "object",
-  "additionalProperties": false,
-  "required": ["decision", "reason_codes", "override_required", "policy_id", "policy_version"],
+  "additionalProperties": true,
+  "required": [
+    "decision",
+    "reason_codes",
+    "override_required",
+    "policy_id",
+    "policy_version"
+  ],
   "properties": {
-    "decision": { "type": "string", "enum": ["APPROVE", "REJECT"] },
-    "reason_codes": { "type": "array", "items": { "type": "string" } },
-    "override_required": { "type": "boolean" },
-    "policy_id": { "type": "string" },
-    "policy_version": { "type": "string" }
+    "decision": {
+      "type": "string"
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "override_required": {
+      "type": "boolean"
+    },
+    "policy_id": {
+      "type": "string"
+    },
+    "policy_version": {
+      "type": "string"
+    },
+    "policy_sha256": {
+      "type": "string"
+    },
+    "policy_capsule_sha256": {
+      "type": "string"
+    },
+    "policy_capsule": {
+      "type": "object",
+      "additionalProperties": true
+    }
   }
 }

@@ -201,9 +201,24 @@ def build_delivery_plan_from_receipt(receipt_path: str) -> DeliveryPlan:
     # Gate-2 enforcement (only for execution-class channels)
     _enforce_execution_gate_from_receipt(r, receipt_path=receipt_path, channel=channel)
 
+
+    # ----------------------------
+    # CI determinism lock (optional)
+    # ----------------------------
+    # In CI, we want stable plan_id + ts_iso to keep queue artifacts deterministic.
+    # Enable with: METAOS_CI_DETERMINISTIC_PLAN=1
+    deterministic = _truthy_env("METAOS_CI_DETERMINISTIC_PLAN")
+    if deterministic:
+        # stable id from receipt hash (content-addressed)
+        plan_id = "dp_" + rhash[:16]
+        ts_iso = "1970-01-01T00:00:00Z"
+    else:
+        plan_id = "dp_" + uuid.uuid4().hex
+        ts_iso = now_iso()
+
     plan = DeliveryPlan(
-        plan_id="dp_" + uuid.uuid4().hex,
-        ts_iso=now_iso(),
+        plan_id=plan_id,
+        ts_iso=ts_iso,
         channel=channel,
         proposal_id=str(r.get("proposal_id") or ""),
         receipt_path=receipt_path,

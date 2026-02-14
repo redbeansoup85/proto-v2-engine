@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "audit_event.v1",
+  "type": "object",
+  "required": ["schema", "kind", "event_id", "ts", "payload"],
+  "properties": {
+    "schema": { "type": "string" },
+    "kind": { "type": "string" },
+    "event_id": { "type": "string" },
+    "ts": { "type": ["integer", "number"] },
+    "payload": { "type": "object" },
+    "hash_prev": { "type": "string" },
+    "prev_hash": { "type": "string" }
+  },
+  "additionalProperties": true
+}

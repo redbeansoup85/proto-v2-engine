@@ -14,81 +14,64 @@ def _num(x: Any, default: float | None = None) -> float | None:
         return float(x)
     return default
 
-def evaluate(features: Dict[str, Any], ruleset: Dict[str, Any]) -> Dict[str, Any]:
+def evaluate(dry, ruleset):
     """
-    Deterministic policy evaluation.
-    reason_codes are policy traces (NOT model explanations).
+    dry: feature dict (e.g. {"x":0.0,"y":0.0})
+    ruleset: loaded YAML policy
     """
-
     for rule in ruleset.get("rules", []):
-        cond = rule.get("condition", {}) or {}
+        cond = rule.get("condition", {})
+        action = rule.get("action", {})
 
+        # --- Explicit legacy conditions ---
         if "risk_level" in cond:
-            if features.get("risk_level") == cond["risk_level"]:
+            if dry.get("risk_level") == cond["risk_level"]:
                 return {
-                    "decision": rule["action"]["decision"],
-                    "reason_codes": [rule["action"].get("reason_code") or "UNSPECIFIED"],
-                    "override_required": True,
+                    "decision": action["decision"],
+                    "reason_codes": [action.get("reason_code", "RULE_MATCH")],
+                    "override_required": action.get("override_required", True),
                     "policy_id": rule["id"],
                     "policy_version": ruleset.get("version") or "1.0",
                 }
 
         if "confidence_lt" in cond:
-            v = _num(cond.get("confidence_lt"), None)
-            fv = _num(features.get("confidence"), 1.0)
-            if v is not None and fv is not None and fv < v:
+            if dry.get("confidence", 1.0) < cond["confidence_lt"]:
                 return {
-                    "decision": rule["action"]["decision"],
-                    "reason_codes": [rule["action"].get("reason_code") or "UNSPECIFIED"],
-                    "override_required": True,
+                    "decision": action["decision"],
+                    "reason_codes": [action.get("reason_code", "RULE_MATCH")],
+                    "override_required": action.get("override_required", True),
                     "policy_id": rule["id"],
                     "policy_version": ruleset.get("version") or "1.0",
                 }
 
-        if "funding_gt" in cond:
-            v = _num(cond.get("funding_gt"), None)
-            fv = _num(features.get("funding"), None)
-            if v is not None and fv is not None and fv > v:
+        # --- Generic exact match for remaining keys ---
+        known = {"risk_level", "confidence_lt"}
+        generic_keys = [k for k in cond.keys() if k not in known]
+
+        if generic_keys:
+            ok = True
+            for k in generic_keys:
+                if dry.get(k) != cond[k]:
+                    ok = False
+                    break
+            if ok:
                 return {
-                    "decision": rule["action"]["decision"],
-                    "reason_codes": [rule["action"].get("reason_code") or "UNSPECIFIED"],
-                    "override_required": True,
+                    "decision": action["decision"],
+                    "reason_codes": [action.get("reason_code", "RULE_MATCH")],
+                    "override_required": action.get("override_required", True),
                     "policy_id": rule["id"],
                     "policy_version": ruleset.get("version") or "1.0",
                 }
 
-        if "open_interest_lt" in cond:
-            v = _num(cond.get("open_interest_lt"), None)
-            fv = _num(features.get("open_interest"), None)
-            if v is not None and fv is not None and fv < v:
-                return {
-                    "decision": rule["action"]["decision"],
-                    "reason_codes": [rule["action"].get("reason_code") or "UNSPECIFIED"],
-                    "override_required": True,
-                    "policy_id": rule["id"],
-                    "policy_version": ruleset.get("version") or "1.0",
-                }
-
-    # DEFAULT PATH (deterministic, never empty)
-    defaults = ruleset.get("defaults", {}) or {}
-    decision = defaults.get("decision", "APPROVE")
+    # --- DEFAULT ---
+    defaults = ruleset.get("defaults", {})
     override_required = defaults.get("override_required", False)
 
-    reason_codes: list[str] = []
-    reason_codes.append(f"DEFAULT_{decision}")
-
-    risk_level = features.get("risk_level")
-    if isinstance(risk_level, str) and risk_level:
-        reason_codes.append(f"RISK_{risk_level}")
-
-    mode = features.get("mode")
-    if isinstance(mode, str) and mode:
-        reason_codes.append(f"MODE_{mode}")
-
     return {
-        "decision": decision,
-        "reason_codes": reason_codes,
+        "decision": defaults.get("decision", "APPROVE"),
+        "reason_codes": ["DEFAULT_APPROVE"],
         "override_required": override_required,
         "policy_id": "DEFAULT",
         "policy_version": ruleset.get("version") or "1.0",
     }
+
