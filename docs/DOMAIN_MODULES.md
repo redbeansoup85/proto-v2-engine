@@ -34,3 +34,6 @@ Important:
 - Domain modules MUST emit domain_event.v1
 - Core must remain domain-agnostic
 - No direct modification of core audit/gate for domain logic
+- signal requires: type, symbol, timeframe, score(0..100), confidence(0..1), risk_level
+- meta requires: producer, version, build_sha
+- evidence_refs if present must use enum ref_kind + bounded ref length
