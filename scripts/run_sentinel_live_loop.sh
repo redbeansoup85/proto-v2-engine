@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MODE="${MODE:-dummy}"                         # real|dummy
+EXECUTION_MODE="${EXECUTION_MODE:-dry_run}"        # dry_run|paper|live
 SYMBOLS="${SYMBOLS:-BTCUSDT,ETHUSDT}"         # comma-separated
 TFS="${TFS:-15m 1h}"                          # space-separated
 INTERVAL_SEC="${INTERVAL_SEC:-60}"
@@ -111,12 +112,12 @@ JSON
   echo "OK: summary=$SUMMARY_OUT"
 
   # -----------------------------
-  # Execution Trigger v0 (DRY_RUN)
+  # Execution Trigger v1 (EXECUTION_MODE)
   # -----------------------------
   python tools/sentinel_build_execution_intent.py \
     --summary-file "$SUMMARY_OUT" \
     --outbox "/tmp/orch_outbox_live/SENTINEL_EXEC" \
-    --dry-run 1 || exit 1
+    --execution-mode "$EXECUTION_MODE" || exit 1
 
 
   # -----------------------------

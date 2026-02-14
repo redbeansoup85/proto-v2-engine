@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import glob
 import os
 import re
 import subprocess
@@ -140,8 +141,11 @@ def main() -> int:
     ap.add_argument("--summary-file", required=True)
     ap.add_argument("--outbox", required=True, help="directory to write intent JSON")
     ap.add_argument("--dry-run", type=int, default=1, help="1 = DRY_RUN (default), 0 = live intent")
+    ap.add_argument("--execution-mode", choices=["dry_run","paper","live"], default=None, help="Execution emission mode (SSOT). If omitted, derived from --dry-run for backward compatibility.")
     args = ap.parse_args()
-
+    execution_mode = args.execution_mode if args.execution_mode else ("dry_run" if bool(int(args.dry_run)) else "paper")
+    if execution_mode not in ("dry_run","paper","live"):
+        raise ValueError(f"invalid execution_mode: {execution_mode}")
     try:
         summary_path = Path(args.summary_file)
         outbox_dir = Path(args.outbox)
@@ -173,7 +177,7 @@ def main() -> int:
             oi_delta_pct = item.get("oi_delta_pct")
             if oi_delta_pct is not None and not isinstance(oi_delta_pct, (int, float)):
                 raise ValueError(f"{symbol}: item.oi_delta_pct must be numeric when present")
-            oi_delta_pct_v = float(oi_delta_pct) if oi_delta_pct is not None else None
+            oi_delta_pct_v = float(oi_delta_pct) if oi_delta_pct is not None else _compute_oi_delta_pct(symbol, ts)
 
             score, direction, risk, conf, snap = _select_signal(item)
             triggered, reason = _evaluate_trigger(
@@ -208,7 +212,8 @@ def main() -> int:
             "ts_iso": _now_ts_iso(),
             "intent": {
                 "ts": ts,
-                "dry_run": bool(int(args.dry_run)),
+                "execution_mode": execution_mode,
+                "dry_run": (execution_mode == "dry_run"),
                 "items": intents,
             },
             "meta": {
@@ -232,6 +237,46 @@ def main() -> int:
     except Exception as exc:
         print(f"FAIL-CLOSED: {exc}")
         return 1
+
+
+
+def _extract_open_interest(deriv_obj):
+    try:
+        return float(deriv_obj.get("derivatives", {}).get("open_interest"))
+    except Exception:
+        return None
+
+def _compute_oi_delta_pct(symbol: str, ts: str, deriv_root: str = "/tmp/metaos_derivatives"):
+    """
+    Compute % change in OI between current deriv_<ts>.json and previous deriv_*.json.
+    Returns float or None.
+    """
+    sym_dir = os.path.join(deriv_root, symbol)
+    cur_path = os.path.join(sym_dir, f"deriv_{ts}.json")
+    if not os.path.isfile(cur_path):
+        return None
+
+    files = sorted(glob.glob(os.path.join(sym_dir, "deriv_*.json")))
+    if cur_path not in files:
+        files = sorted(set(files + [cur_path]))
+
+    idx = files.index(cur_path)
+    if idx == 0:
+        return None
+
+    prev_path = files[idx - 1]
+    try:
+        cur = json.load(open(cur_path, "r", encoding="utf-8"))
+        prev = json.load(open(prev_path, "r", encoding="utf-8"))
+    except Exception:
+        return None
+
+    cur_oi = _extract_open_interest(cur)
+    prev_oi = _extract_open_interest(prev)
+    if cur_oi is None or prev_oi in (None, 0.0):
+        return None
+
+    return (cur_oi - prev_oi) / prev_oi * 100.0
 
 
 if __name__ == "__main__":
