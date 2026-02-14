@@ -12,19 +12,54 @@ POLICY="${POLICY:-$ROOT/policies/sentinel/gate_v1.yaml}"
 NORM="/tmp/norm_bybit_${SYMBOL}.json"
 $PY "$ROOT/tools/bybit_fetch_norm.py" --symbol "$SYMBOL" --interval 15 --limit 200 --out "$NORM"
 
-# 2) gate
+# 2) domain_event.v1 build + validate (fail-closed)
+SENTINEL_SIGNAL_TIMEFRAME="${SENTINEL_SIGNAL_TIMEFRAME:-15m}"
+SENTINEL_SIGNAL_SCORE="${SENTINEL_SIGNAL_SCORE:-50}"
+SENTINEL_SIGNAL_CONFIDENCE="${SENTINEL_SIGNAL_CONFIDENCE:-0.5}"
+SENTINEL_SIGNAL_RISK_LEVEL="${SENTINEL_SIGNAL_RISK_LEVEL:-medium}"
+SENTINEL_SIGNAL_DIRECTION="${SENTINEL_SIGNAL_DIRECTION:-}"
+SENTINEL_SIGNAL_TAGS="${SENTINEL_SIGNAL_TAGS:-bybit,social,warn}"
+SENTINEL_SIGNAL_METRICS_JSON="${SENTINEL_SIGNAL_METRICS_JSON:-}"
+
+DOMAIN_EVENT_DIR="/tmp/metaos_domain_events/${SYMBOL}"
+mkdir -p "$DOMAIN_EVENT_DIR"
+DOMAIN_EVENT="$DOMAIN_EVENT_DIR/domain_event_001.json"
+
+DOMAIN_EVENT_CMD=(
+  "$PY" "$ROOT/tools/sentinel_build_domain_event.py"
+  --symbol "$SYMBOL"
+  --timeframe "$SENTINEL_SIGNAL_TIMEFRAME"
+  --score "$SENTINEL_SIGNAL_SCORE"
+  --confidence "$SENTINEL_SIGNAL_CONFIDENCE"
+  --risk-level "$SENTINEL_SIGNAL_RISK_LEVEL"
+  --tags "$SENTINEL_SIGNAL_TAGS"
+  --evidence "ref_kind=FILEPATH ref=$NORM"
+  --out "$DOMAIN_EVENT"
+)
+
+if [[ -n "$SENTINEL_SIGNAL_DIRECTION" ]]; then
+  DOMAIN_EVENT_CMD+=(--direction "$SENTINEL_SIGNAL_DIRECTION")
+fi
+if [[ -n "$SENTINEL_SIGNAL_METRICS_JSON" ]]; then
+  DOMAIN_EVENT_CMD+=(--metrics-json "$SENTINEL_SIGNAL_METRICS_JSON")
+fi
+
+"${DOMAIN_EVENT_CMD[@]}"
+echo "OK: domain_event -> $DOMAIN_EVENT"
+
+# 3) gate
 GATE="/tmp/gate_${SYMBOL}.json"
 $PY "$ROOT/sdk/gate_cli.py" --input "$NORM" --policy "$POLICY" --out "$GATE"
 echo "OK: gate -> $GATE"
 
-# 3) audit append gate decision (seal)
+# 4) audit append gate decision (seal)
 export AURALIS_AUDIT_PATH="${AURALIS_AUDIT_PATH:-/tmp/audit_sentinel_social.jsonl}"
 rm -f "$AURALIS_AUDIT_PATH"
 
 $PY "$ROOT/tools/audit_append_gate_chain.py" --gate "$GATE" --event-id "SOCIAL:GATE_DECISION:${SYMBOL}:1" >/dev/null
 $PY "$ROOT/tools/audit/verify_chain.py" --schema "$ROOT/sdk/schemas/audit_event.v1.json" --chain "$AURALIS_AUDIT_PATH"
 
-# 4) orch pipeline (LOCK6~8과 동일 구조를 "실제 파일"로 1회 구동)
+# 5) orch pipeline (LOCK6~8과 동일 구조를 "실제 파일"로 1회 구동)
 #    - 여기선 CI determinism 스위치 끄고 실제 ts로 운영 가능
 unset METAOS_CI_DETERMINISTIC_PLAN METAOS_CI_DETERMINISTIC_CONSUMER METAOS_CI_DETERMINISTIC_ORCH_PAYLOAD METAOS_CI_DETERMINISTIC_ORCH_DECISION METAOS_CI_DETERMINISTIC_ORCH_OUTBOX
 
@@ -32,7 +67,7 @@ unset METAOS_CI_DETERMINISTIC_PLAN METAOS_CI_DETERMINISTIC_CONSUMER METAOS_CI_DE
 # 가장 안전한 운영 루프: 지금처럼 "Outbox item"을 직접 만들어 Slack으로 쏘고 AlertEmitted만 봉인.
 # (Orchestrator full run을 운영에 넣기 전, 경고부터 사회 연결하는 1차 목표에 최적)
 
-# 5) outbox item을 "gate 기반 경고"로 간단 생성 (최소 outbox 스키마를 흉내)
+# 6) outbox item을 "gate 기반 경고"로 간단 생성 (최소 outbox 스키마를 흉내)
 OUTBOX_DIR="/tmp/orch_outbox_live/${SYMBOL}"
 mkdir -p "$OUTBOX_DIR"
 OUTBOX_ITEM="$OUTBOX_DIR/delivery_001.json"
@@ -72,10 +107,10 @@ pathlib.Path("$OUTBOX_ITEM").write_text(json.dumps(out, ensure_ascii=False, inde
 print("OK: wrote outbox", "$OUTBOX_ITEM")
 PY
 
-# 6) slack emit (운영)
+# 7) slack emit (운영)
 $PY "$ROOT/tools/emit_slack_alert.py" --outbox-item "$OUTBOX_ITEM"
 
-# 7) alert emitted seal + verify
+# 8) alert emitted seal + verify
 $PY "$ROOT/tools/audit_append_alert_emitted.py" --outbox-item "$OUTBOX_ITEM" --event-id "SOCIAL:ALERT_EMITTED:${SYMBOL}:1" >/dev/null
 $PY "$ROOT/tools/audit/verify_chain.py" --schema "$ROOT/sdk/schemas/audit_event.v1.json" --chain "$AURALIS_AUDIT_PATH"
 
