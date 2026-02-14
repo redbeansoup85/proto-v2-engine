@@ -22,5 +22,6 @@ These environment variables are **CI-only** and MUST be **OFF in production**.
 - Purpose: deterministic orchestrator inbox payloads for strict CI.
 
 ## Baseline tag policy (immutable)
-- `v3.0-lock-stable` is an **immutable baseline tag** (no delete / no move).
-- New baselines should use a **new tag name** (e.g. `v3.1-lock-stable`), not `v3.0-lock-stable.2`.
+- `vX.Y-lock-stable` is an **immutable baseline tag** (no delete / no move).
+- New baselines must use a **new tag name** (e.g. `v3.2-lock-stable` → `v3.3-lock-stable`), never a suffix on the same baseline name.
+- `vX.Y-lock-stable.*` is **CI trigger-only** (may be created freely to re-run CI) and is **NOT** a baseline.
