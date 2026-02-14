@@ -1,0 +1,56 @@
+version: v1
+agents:
+  reasoning:
+    provider: ollama
+    model: llama3.1:70b
+    role: reasoning_agent
+    schema: auralis_v1/core/agents/schemas/reasoning_agent.schema.json
+    disallowed_outputs:
+      - execute
+      - order
+      - place_order
+      - trade
+      - qty
+      - size
+      - price
+      - leverage
+      - position
+      - approve
+      - reject
+      - commit
+  design:
+    provider: ollama
+    model: llama3.1:70b
+    role: design_agent
+    schema: auralis_v1/core/agents/schemas/design_agent.schema.json
+    disallowed_outputs:
+      - execute
+      - order
+      - place_order
+      - trade
+      - qty
+      - size
+      - price
+      - leverage
+      - position
+      - approve
+      - reject
+      - commit
+  fast:
+    provider: ollama
+    model: mistral
+    role: fast_agent
+    schema: auralis_v1/core/agents/schemas/fast_agent.schema.json
+    disallowed_outputs:
+      - execute
+      - order
+      - place_order
+      - trade
+      - qty
+      - size
+      - price
+      - leverage
+      - position
+      - approve
+      - reject
+      - commit

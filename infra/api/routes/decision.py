@@ -22,6 +22,7 @@ from infra.api.deps import (
     get_scene_state_map,
     get_l3_learning,  # ✅ B-2
 )
+from tools.observe.observe_event import observe_event
 
 router = APIRouter(prefix="/v1/decision", tags=["decision"])
 
@@ -68,6 +69,31 @@ def ingest(
 
     # attach scene_id into meta for snapshot + response
     payload_meta = payload.meta.model_copy(update={"scene_id": active.scene_id})
+
+    observe_event(
+        {
+            "kind": "decision_ingest",
+            "meta": {
+                "org_id": payload_meta.org_id,
+                "site_id": payload_meta.site_id,
+                "channel": str(payload_meta.channel),
+                "scene_id": active.scene_id,
+                "context_key": context_key,
+                "request_id": None,
+                "source_path": "infra/api/routes/decision.py::ingest",
+            },
+            "preview": {
+                "payload_keys": sorted(payload.model_dump().keys()),
+                "signals_keys": sorted(payload.signals.keys()),
+                "signals_count": len(payload.signals),
+                "window_start_ts": payload_meta.window.start_ts,
+                "window_end_ts": payload_meta.window.end_ts,
+            },
+        },
+        channel=str(payload_meta.channel),
+        source_path="infra/api/routes/decision.py::ingest",
+        request_id=None,
+    )
 
     # 2) Policy decision
     decision = policy.decide(channel=str(payload_meta.channel), signals=payload.signals)
