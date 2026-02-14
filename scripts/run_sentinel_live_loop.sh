@@ -32,8 +32,21 @@ for ((c=1; c<=CYCLES; c++)); do
         --out "$DER" || exit 1
     else
       # minimal dummy (only if you ever run MODE=dummy)
+      # minimal dummy (only if you ever run MODE=dummy)
+      # deterministic-ish OI drift so 15m OI-delta buckets get exercised
+      BASE_OI=100000
+      # use TS seconds (SS) to force meaningful OI delta per cycle
+      SEC="${TS: -3:2}"
+      STEP=$((10#$SEC))
+      OI=$((BASE_OI + STEP * 500))
       cat > "$DER" <<JSON
-{ "symbol": "$S", "open_interest": 0.0, "ts_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)" }
+{
+  "symbol": "$S",
+  "ts_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "derivatives": {
+    "open_interest": $OI
+  }
+}
 JSON
     fi
 
@@ -57,11 +70,14 @@ JSON
 {
   "symbol": "$S",
   "timeframe": "$TF",
-  "open": 24800,
-  "high": 24900,
-  "low": 24750,
-  "close": 24850,
-  "volume": 123.45,
+  "ts_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "ohlc": {
+    "open": 24800,
+    "high": 24900,
+    "low": 24750,
+    "close": 24850,
+    "volume": 123.45
+  },
   "ts": "$TS"
 }
 JSON
