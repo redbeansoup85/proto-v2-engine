@@ -5,8 +5,8 @@ on:
   push:
 
     tags:
-      - 'v3.0-lock-stable'
-      - 'v3.0-lock-stable.*'
+      - 'v*-lock-stable'
+      - 'v*-lock-stable.*'
 
 jobs:
   gate-stability:
