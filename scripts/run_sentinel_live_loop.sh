@@ -42,5 +42,12 @@ while true; do
     --out "/tmp/metaos_domain_events/_summary/summary_${TS}.json"
 
   echo "OK: summary=/tmp/metaos_domain_events/_summary/summary_${TS}.json"
+  if [ -f "/tmp/_events/event_${TS}.json" ]; then
+    python tools/sentinel_observer_feed.py \
+      --summary-file "/tmp/metaos_domain_events/_summary/summary_${TS}.json" \
+      --events-dir "/tmp/_events" \
+      --output-dir "/tmp/_observer_test"
+    echo "OK: observer_replay=/tmp/_observer_test/replay_${TS}.json"
+  fi
   sleep "${INTERVAL_SEC}"
 done
