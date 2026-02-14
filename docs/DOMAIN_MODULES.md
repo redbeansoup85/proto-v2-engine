@@ -55,3 +55,5 @@ Sentinel scoring snapshot v0.2:
 - Summary output: `/tmp/metaos_domain_events/_summary/summary_<TS>.json`
 - Event triggers per symbol+TF: `SCORE_JUMP`, `RISK_UP`, `CONF_DROP`.
 - Events JSON output: `/tmp/_events/event_<TS>.json`.
+- Console dashboard prints `OPEN|HIGH|LOW|CLOSE|VOLUME` with score/alerts per item.
+- Dashboard reads OHLC from each summary item `snapshot_path` (read-only).
