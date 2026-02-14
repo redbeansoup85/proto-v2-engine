@@ -42,5 +42,8 @@ while true; do
     --out "/tmp/metaos_domain_events/_summary/summary_${TS}.json"
 
   echo "OK: summary=/tmp/metaos_domain_events/_summary/summary_${TS}.json"
+  python tools/sentinel_console_dashboard.py \
+    --summary-file "/tmp/metaos_domain_events/_summary/summary_${TS}.json"
+
   sleep "${INTERVAL_SEC}"
 done
