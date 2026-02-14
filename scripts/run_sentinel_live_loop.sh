@@ -111,6 +111,15 @@ JSON
   echo "OK: summary=$SUMMARY_OUT"
 
   # -----------------------------
+  # Execution Trigger v0 (DRY_RUN)
+  # -----------------------------
+  python tools/sentinel_build_execution_intent.py \
+    --summary-file "$SUMMARY_OUT" \
+    --outbox "/tmp/orch_outbox_live/SENTINEL_EXEC" \
+    --dry-run 1 || exit 1
+
+
+  # -----------------------------
   # Console dashboard
   # -----------------------------
   if [ -f "tools/sentinel_console_dashboard.py" ]; then
