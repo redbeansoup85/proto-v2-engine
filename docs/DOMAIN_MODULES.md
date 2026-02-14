@@ -37,3 +37,7 @@ Important:
 - signal requires: type, symbol, timeframe, score(0..100), confidence(0..1), risk_level
 - meta requires: producer, version, build_sha
 - evidence_refs if present must use enum ref_kind + bounded ref length
+
+Sentinel domain_event.v1 (v0 adoption):
+- Sentinel emits `domain_event.v1` `SIGNAL` events as Gate inputs.
+- Current producer is `sentinel.social` with signal type `BYBIT_ALERT`.
