@@ -225,11 +225,11 @@ def _consensus_stable(leg_15m: dict | None, leg_1h: dict | None) -> dict:
     c15, c1 = float(leg_15m.get("confidence", 0.55)), float(leg_1h.get("confidence", 0.55))
 
     trigger_ok = s15 >= 70 and d15 in ("long", "short")
-    structure_ok = d1 == d15 and s1 >= 65
+    structure_ok = (d1 in (d15, "neutral")) and s1 >= 55
 
     if trigger_ok and structure_ok:
         final_dir = d15
-        final_score = int(round((s15 + s1) / 2))
+        final_score = int(min(s15, s1 + 20))
         final_conf = min(c15, c1) + 0.05
         if final_conf > 1.0:
             final_conf = 1.0
