@@ -94,13 +94,59 @@ def _validate_output(repo_root: Path, out_path: Path) -> None:
         raise SystemExit(f"FAIL-CLOSED: domain_event.v1 validation failed: {detail}")
 
 
+def _from_snapshot(snapshot_file: str) -> dict:
+    path = Path(snapshot_file)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SystemExit(f"FAIL-CLOSED: cannot load --snapshot-file: {exc}") from exc
+
+    if not isinstance(raw, dict):
+        raise SystemExit("FAIL-CLOSED: --snapshot-file JSON root must be an object")
+
+    symbol = raw.get("symbol")
+    if not isinstance(symbol, str) or not symbol:
+        raise SystemExit("FAIL-CLOSED: snapshot.symbol must be a non-empty string")
+
+    score = raw.get("score")
+    if not isinstance(score, dict):
+        raise SystemExit("FAIL-CLOSED: snapshot.score must be an object")
+
+    final = score.get("final")
+    confidence = score.get("confidence")
+    risk_level = score.get("risk_level")
+    direction = score.get("direction")
+
+    if not isinstance(final, int):
+        raise SystemExit("FAIL-CLOSED: snapshot.score.final must be int")
+    if not isinstance(confidence, (int, float)):
+        raise SystemExit("FAIL-CLOSED: snapshot.score.confidence must be number")
+    if risk_level not in {"low", "medium", "high"}:
+        raise SystemExit("FAIL-CLOSED: snapshot.score.risk_level must be low|medium|high")
+    if direction not in {None, "long", "short", "neutral"}:
+        raise SystemExit("FAIL-CLOSED: snapshot.score.direction must be long|short|neutral if present")
+
+    return {
+        "symbol": symbol,
+        "timeframe": "other",
+        "score": int(final),
+        "confidence": float(confidence),
+        "risk_level": risk_level,
+        "direction": direction,
+        "tags": ["snapshot_v0_2", "live_loop"],
+        "metrics": None,
+        "evidence": [{"ref_kind": "FILEPATH", "ref": str(path)}],
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--symbol", required=True, help="e.g., BTCUSDT")
+    ap.add_argument("--snapshot-file", default=None, help="optional sentinel snapshot JSON path")
+    ap.add_argument("--symbol", default=None, help="e.g., BTCUSDT")
     ap.add_argument("--timeframe", default="15m", help="1m|5m|15m|1h|4h|1d|other")
-    ap.add_argument("--score", required=True, type=int, help="0..100")
-    ap.add_argument("--confidence", required=True, type=float, help="0..1")
-    ap.add_argument("--risk-level", required=True, choices=["low", "medium", "high"])
+    ap.add_argument("--score", type=int, default=None, help="0..100")
+    ap.add_argument("--confidence", type=float, default=None, help="0..1")
+    ap.add_argument("--risk-level", choices=["low", "medium", "high"], default=None)
     ap.add_argument("--direction", choices=["long", "short", "neutral"])
     ap.add_argument("--tags", action="append", default=[], help="repeatable and/or comma-separated")
     ap.add_argument("--metrics-json", default=None, help="optional JSON object string")
@@ -114,9 +160,35 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="output file path")
     args = ap.parse_args()
 
-    if not 0 <= args.score <= 100:
+    if args.snapshot_file:
+        snapshot_values = _from_snapshot(args.snapshot_file)
+        symbol = snapshot_values["symbol"]
+        timeframe = snapshot_values["timeframe"]
+        score = snapshot_values["score"]
+        confidence = snapshot_values["confidence"]
+        risk_level = snapshot_values["risk_level"]
+        direction = snapshot_values["direction"]
+        tags = snapshot_values["tags"]
+        metrics = snapshot_values["metrics"]
+        evidence_refs = snapshot_values["evidence"]
+    else:
+        if args.symbol is None or args.score is None or args.confidence is None or args.risk_level is None:
+            raise SystemExit(
+                "FAIL-CLOSED: direct mode requires --symbol --score --confidence --risk-level"
+            )
+        symbol = args.symbol
+        timeframe = args.timeframe
+        score = args.score
+        confidence = args.confidence
+        risk_level = args.risk_level
+        direction = args.direction
+        tags = _parse_tags(args.tags)
+        metrics = _parse_metrics(args.metrics_json)
+        evidence_refs = _parse_evidence(args.evidence)
+
+    if not 0 <= score <= 100:
         raise SystemExit("FAIL-CLOSED: --score must be in [0, 100]")
-    if not 0 <= args.confidence <= 1:
+    if not 0 <= confidence <= 1:
         raise SystemExit("FAIL-CLOSED: --confidence must be in [0, 1]")
 
     deterministic = _deterministic_mode(args.ci)
@@ -130,20 +202,17 @@ def main() -> int:
 
     signal = {
         "type": "BYBIT_ALERT",
-        "symbol": args.symbol,
-        "timeframe": args.timeframe,
-        "score": args.score,
-        "confidence": args.confidence,
-        "risk_level": args.risk_level,
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "score": score,
+        "confidence": confidence,
+        "risk_level": risk_level,
     }
-    if args.direction:
-        signal["direction"] = args.direction
-
-    tags = _parse_tags(args.tags)
+    if direction:
+        signal["direction"] = direction
     if tags:
         signal["tags"] = tags
 
-    metrics = _parse_metrics(args.metrics_json)
     if metrics is not None:
         signal["metrics"] = metrics
 
@@ -154,7 +223,7 @@ def main() -> int:
         "schema": "domain_event.v1",
         "domain": "sentinel",
         "kind": "SIGNAL",
-        "event_id": f"SENTINEL:SIGNAL:BYBIT_ALERT:{args.symbol}:{ts_for_id}:1",
+        "event_id": f"SENTINEL:SIGNAL:BYBIT_ALERT:{symbol}:{ts_for_id}:1",
         "ts_iso": ts_iso,
         "signal": signal,
         "meta": {
@@ -164,7 +233,6 @@ def main() -> int:
         },
     }
 
-    evidence_refs = _parse_evidence(args.evidence)
     if evidence_refs:
         event["evidence_refs"] = evidence_refs
 
