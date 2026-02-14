@@ -41,3 +41,8 @@ Important:
 Sentinel domain_event.v1 (v0 adoption):
 - Sentinel emits `domain_event.v1` `SIGNAL` events as Gate inputs.
 - Current producer is `sentinel.social` with signal type `BYBIT_ALERT`.
+
+domain_event viewer UI (read-only):
+- Run: `streamlit run apps/ui_domain_event_viewer.py` (or `scripts/run_ui_domain_event_viewer.sh`)
+- Default scan path: `/tmp/metaos_domain_events`
+- If missing, install dev dep: `pip install streamlit`
