@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "domain_event.v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "domain",
+    "kind",
+    "event_id",
+    "ts_iso",
+    "signal",
+    "meta"
+  ],
+  "properties": {
+    "schema": {
+      "const": "domain_event.v1"
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ts_iso": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signal": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_ref": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "ref"],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "producer": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "trace_id": {
+          "type": "string"
+        },
+        "dry_run": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
