@@ -224,7 +224,7 @@ def _consensus_stable(leg_15m: dict | None, leg_1h: dict | None) -> dict:
     s15, s1 = int(leg_15m.get("score", 0)), int(leg_1h.get("score", 0))
     c15, c1 = float(leg_15m.get("confidence", 0.55)), float(leg_1h.get("confidence", 0.55))
 
-    trigger_ok = s15 >= 75 and d15 in ("long", "short")
+    trigger_ok = s15 >= 70 and d15 in ("long", "short")
     structure_ok = d1 == d15 and s1 >= 65
 
     if trigger_ok and structure_ok:
