@@ -46,3 +46,8 @@ domain_event viewer UI (read-only):
 - Run: `streamlit run apps/ui_domain_event_viewer.py` (or `scripts/run_ui_domain_event_viewer.sh`)
 - Default scan path: `/tmp/metaos_domain_events`
 - If missing, install dev dep: `pip install streamlit`
+
+Sentinel scoring snapshot v0.2:
+- Build: `python tools/sentinel_score_snapshot_v0_2.py --symbol BTCUSDT --out /tmp/metaos_snapshots/BTCUSDT/snapshot_001.json`
+- Selftest: `python tools/selftest_sentinel_score_snapshot_v0_2.py`
+- Snapshot path default example: `/tmp/metaos_snapshots/<SYMBOL>/snapshot_001.json`
