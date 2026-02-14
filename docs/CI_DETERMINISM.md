@@ -20,3 +20,7 @@ These environment variables are **CI-only** and MUST be **OFF in production**.
 - Locks:
   - `ORCH_INBOX_V1.ts_iso` to `1970-01-01T00:00:00Z`
 - Purpose: deterministic orchestrator inbox payloads for strict CI.
+
+## Baseline tag policy (immutable)
+- `v3.0-lock-stable` is an **immutable baseline tag** (no delete / no move).
+- New baselines should use a **new tag name** (e.g. `v3.1-lock-stable`), not `v3.0-lock-stable.2`.
