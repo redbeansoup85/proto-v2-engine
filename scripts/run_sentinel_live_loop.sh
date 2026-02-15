@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${MODE:-dummy}"                         # real|dummy
+MODE="${MODE:-dummy}"                              # real|dummy
 EXECUTION_MODE="${EXECUTION_MODE:-dry_run}"        # dry_run|paper|live
-SYMBOLS="${SYMBOLS:-BTCUSDT,ETHUSDT}"         # comma-separated
-TFS="${TFS:-15m 1h}"                          # space-separated
+SYMBOLS="${SYMBOLS:-BTCUSDT,ETHUSDT}"              # comma-separated
+TFS="${TFS:-15m 1h}"                               # space-separated
 INTERVAL_SEC="${INTERVAL_SEC:-60}"
 CYCLES="${CYCLES:-1}"
 
@@ -32,7 +32,6 @@ for ((c=1; c<=CYCLES; c++)); do
         --symbol "$S" \
         --out "$DER" || exit 1
     else
-      # minimal dummy (only if you ever run MODE=dummy)
       # minimal dummy (only if you ever run MODE=dummy)
       # deterministic-ish OI drift so 15m OI-delta buckets get exercised
       BASE_OI=100000
@@ -124,13 +123,59 @@ JSON
   # -----------------------------
   # Observer Hub append (execution_intent)
   # -----------------------------
-  LAST_INTENT="$(ls -1t /tmp/orch_outbox_live/SENTINEL_EXEC/intent_*.json 2>/dev/null | head -n 1 || true)"
-  if [ -n "$LAST_INTENT" ]; then
+  INTENT_PATH="/tmp/orch_outbox_live/SENTINEL_EXEC/intent_${TS}.json"
+  if [ -f "$INTENT_PATH" ]; then
+    python tools/observer_append_execution_intent.py \
+      --intent-file "$INTENT_PATH" \
+      --audit-jsonl "var/audit_chain/execution_intent.jsonl" || exit 1
+  else
+    # fallback to latest if TS-matched not found
+    LAST_INTENT="$(ls -1t /tmp/orch_outbox_live/SENTINEL_EXEC/intent_*.json 2>/dev/null | head -n 1 || true)"
+    test -n "$LAST_INTENT" || { echo "ERROR: no execution_intent produced"; exit 1; }
     python tools/observer_append_execution_intent.py \
       --intent-file "$LAST_INTENT" \
       --audit-jsonl "var/audit_chain/execution_intent.jsonl" || exit 1
+    INTENT_PATH="$LAST_INTENT"
   fi
 
+  # -----------------------------
+  # Paper orders (execution_mode=paper only)
+  # -----------------------------
+  if [ "${EXECUTION_MODE:-}" = "paper" ]; then
+    POLICY_FILE="policies/sentinel/paper_orders_v1.yaml"
+    test -f "$POLICY_FILE" || { echo "ERROR: missing policy file: $POLICY_FILE"; exit 1; }
+
+    POLICY_SHA256="$(python - <<'PY'
+import hashlib, pathlib
+p = pathlib.Path("policies/sentinel/paper_orders_v1.yaml")
+print(hashlib.sha256(p.read_bytes()).hexdigest())
+PY
+)"
+    test -n "$POLICY_SHA256" || { echo "ERROR: failed to compute policy sha256"; exit 1; }
+
+    test -f "$INTENT_PATH" || { echo "ERROR: missing execution intent for paper orders: $INTENT_PATH"; exit 1; }
+
+    python tools/sentinel_build_paper_orders.py \
+      --execution-intent "$INTENT_PATH" \
+      --outbox "/tmp/orch_outbox_live/SENTINEL_ORDERS" \
+      --policy-file "$POLICY_FILE" \
+      --policy-sha256 "$POLICY_SHA256" || exit 1
+
+    PAPER_PATH="/tmp/orch_outbox_live/SENTINEL_ORDERS/paper_${TS}.json"
+    if [ -f "$PAPER_PATH" ]; then
+      # Optional: append to audit chain if tool exists
+      if [ -f "tools/observer_append_paper_orders.py" ]; then
+        python tools/observer_append_paper_orders.py \
+          --paper-file "$PAPER_PATH" \
+          --audit-jsonl "var/audit_chain/paper_orders.jsonl" || exit 1
+      fi
+    else
+      echo "WARN: paper intent not found for TS=$TS (expected $PAPER_PATH)"
+      # still fail-closed? choose behavior:
+      # If you want strict fail-closed for paper mode, uncomment next line:
+      # exit 1
+    fi
+  fi
 
   # -----------------------------
   # Console dashboard

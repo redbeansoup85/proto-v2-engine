@@ -41,3 +41,6 @@ audits/sentinel/snapshots/
 $TMP_BASE/
 logs/
 var/
+
+# Sentinel local debug
+policies/sentinel/paper_orders_debug_v1.yaml
