@@ -102,6 +102,46 @@ def build_snapshot_payload(
         market_type=market_type,
         http_get_json=http_get_json,
     )
+    stale_missing: List[str] = []
+    if isinstance(stale_limit_ms, int) and stale_limit_ms > 0:
+        snapshot_ts_ms = _parse_iso_utc_to_ms(ts_utc)
+        candles_obj = raw_bundle.get("candles")
+        if snapshot_ts_ms is not None and isinstance(candles_obj, dict):
+            proof_obj = raw_bundle.get("proof")
+            if not isinstance(proof_obj, dict):
+                proof_obj = {}
+                raw_bundle["proof"] = proof_obj
+            proof_errors = proof_obj.get("errors")
+            if not isinstance(proof_errors, list):
+                proof_errors = []
+                proof_obj["errors"] = proof_errors
+
+            for tf in tfs:
+                rows = candles_obj.get(tf)
+                if not isinstance(rows, list) or not rows:
+                    continue
+                last = rows[-1]
+                last_t = last.get("t") if isinstance(last, dict) else None
+                last_ms: Optional[int] = None
+                try:
+                    last_ms = int(last_t)  # type: ignore[arg-type]
+                except Exception:
+                    if isinstance(last_t, str):
+                        last_ms = _parse_iso_utc_to_ms(last_t)
+
+                if last_ms is None:
+                    candles_obj[tf] = []
+                    stale_key = "candles.%s.stale" % tf
+                    if stale_key not in stale_missing:
+                        stale_missing.append(stale_key)
+                    proof_errors.append({"tf": tf, "type": "candle_ts_parse_error", "message": "invalid candle t"})
+                    continue
+
+                if abs(snapshot_ts_ms - last_ms) > stale_limit_ms:
+                    candles_obj[tf] = []
+                    stale_key = "candles.%s.stale" % tf
+                    if stale_key not in stale_missing:
+                        stale_missing.append(stale_key)
 
     candles = raw_bundle.get("candles")
     candles_map: Dict[str, List[Dict[str, Any]]] = candles if isinstance(candles, dict) else {}
@@ -110,6 +150,11 @@ def build_snapshot_payload(
     base_metrics = per_tf.get(base_tf, {}) if isinstance(base_tf, str) else {}
     computed = {"per_tf": per_tf, "base_tf": base_tf, "base": base_metrics}
     evidence = _build_evidence(raw_bundle, computed, tfs, stale_limit_ms, ts_utc)
+    missing = evidence.get("missing")
+    if isinstance(missing, list):
+        for item in stale_missing:
+            if item not in missing:
+                missing.append(item)
 
     template = make_template_snapshot(asset=asset, ts_utc=ts_utc)
     snapshot = build_snapshot_from_template(
@@ -162,4 +207,3 @@ def capture_market_snapshot(
     tmp.write_text(_canonical_json(snapshot) + "\n", encoding="utf-8")
     tmp.replace(target)
     return str(Path("audits/sentinel/snapshots") / target.name)
-
