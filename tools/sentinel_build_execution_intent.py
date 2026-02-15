@@ -150,6 +150,95 @@ def _evaluate_trigger(
     return (False, "NO_ACTION_CONDITIONS_NOT_MET")
 
 
+def _default_quality_effects() -> dict:
+    return {
+        "size_multiplier": 1.0,
+        "allow_new_entries": True,
+        "reduce_only": False,
+        "deny": False,
+    }
+
+
+def _extract_item_quality(item: dict) -> tuple[bool, str]:
+    q = item.get("quality")
+    if not isinstance(q, dict):
+        return (False, "none")
+    evidence_ok = bool(q.get("evidence_ok"))
+    severity_max = q.get("severity_max")
+    if severity_max not in ("none", "warn", "error"):
+        severity_max = "none"
+    return (evidence_ok, str(severity_max))
+
+
+def _apply_effect_overrides(effects: dict, raw: Any) -> dict:
+    if not isinstance(raw, dict):
+        return effects
+    out = dict(effects)
+    mult = raw.get("size_multiplier")
+    if isinstance(mult, (int, float)):
+        out["size_multiplier"] = float(mult)
+    allow = raw.get("allow_new_entries")
+    if isinstance(allow, bool):
+        out["allow_new_entries"] = allow
+    reduce_only = raw.get("reduce_only")
+    if isinstance(reduce_only, bool):
+        out["reduce_only"] = reduce_only
+    deny = raw.get("deny")
+    if isinstance(deny, bool):
+        out["deny"] = deny
+    return out
+
+
+def _apply_quality_policy(policy: dict, item: dict, triggered: bool, reason: str) -> tuple[bool, str, dict]:
+    qp = policy.get("quality_policy")
+    if not isinstance(qp, dict):
+        raise ValueError("policy.quality_policy must be object")
+    mode = qp.get("mode")
+    if mode not in ("observer", "soft_gate", "hard_gate"):
+        raise ValueError("policy.quality_policy.mode invalid")
+
+    evidence_ok, severity_max = _extract_item_quality(item)
+    effects = _default_quality_effects()
+    out_triggered = bool(triggered)
+    out_reason = str(reason)
+
+    if mode == "soft_gate":
+        soft = qp.get("soft_gate")
+        if not isinstance(soft, dict):
+            raise ValueError("policy.quality_policy.soft_gate must be object")
+        if severity_max == "error" or not evidence_ok:
+            effects = _apply_effect_overrides(effects, soft.get("error"))
+        elif severity_max == "warn":
+            effects = _apply_effect_overrides(effects, soft.get("warn"))
+    elif mode == "hard_gate":
+        hard = qp.get("hard_gate")
+        if not isinstance(hard, dict):
+            raise ValueError("policy.quality_policy.hard_gate must be object")
+        deny_on = hard.get("deny_on")
+        if not isinstance(deny_on, dict):
+            raise ValueError("policy.quality_policy.hard_gate.deny_on must be object")
+        deny = False
+        if bool(deny_on.get("evidence_not_ok")) and not evidence_ok:
+            deny = True
+        if bool(deny_on.get("severity_error")) and severity_max == "error":
+            deny = True
+        if deny:
+            out_triggered = False
+            out_reason = "QUALITY_HARD_GATE_DENY"
+            effects["size_multiplier"] = 0.0
+            effects["allow_new_entries"] = False
+            effects["reduce_only"] = True
+            effects["deny"] = True
+
+    quality = {
+        "mode": mode,
+        "evidence_ok": evidence_ok,
+        "severity_max": severity_max,
+        "effects": effects,
+    }
+    return out_triggered, out_reason, quality
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary-file", required=True)
@@ -205,6 +294,7 @@ def main() -> int:
 
             score, direction, risk, conf, snap = _select_signal(item)
             triggered, reason = _evaluate_trigger(execution_mode=execution_mode, score=score, direction=direction, risk_level=risk, confidence=conf, oi_delta_pct=oi_delta_pct_v)
+            triggered, reason, quality = _apply_quality_policy(policy, item, triggered, reason)
             intents.append(
                 {
                     "symbol": symbol,
@@ -217,6 +307,7 @@ def main() -> int:
                     "snapshot_path": snap,
                     "triggered": triggered,
                     "reason_code": reason,
+                    "quality": quality,
                 }
             )
 
@@ -270,6 +361,12 @@ def _load_trigger_policy(path: Path) -> dict:
       raise ValueError("policy must be a YAML mapping")
   if obj.get("schema") != "sentinel_exec_trigger_policy.v1":
       raise ValueError("policy.schema mismatch")
+  qp = obj.get("quality_policy")
+  if not isinstance(qp, dict):
+      raise ValueError("policy.quality_policy missing")
+  mode = qp.get("mode")
+  if mode not in ("observer", "soft_gate", "hard_gate"):
+      raise ValueError("policy.quality_policy.mode invalid")
   return obj
 
 def _eval_trigger(policy: dict, *, score: float, direction: str | None, risk_level: str, confidence: float, oi_delta_pct: float | None) -> tuple[bool, str]:

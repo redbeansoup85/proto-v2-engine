@@ -25,3 +25,19 @@ rules:
 default:
   triggered: false
   reason_code: NO_ACTION_CONDITIONS_NOT_MET
+
+quality_policy:
+  mode: observer
+  soft_gate:
+    warn:
+      size_multiplier: 0.7
+      allow_new_entries: true
+      reduce_only: false
+    error:
+      size_multiplier: 0.3
+      allow_new_entries: false
+      reduce_only: true
+  hard_gate:
+    deny_on:
+      evidence_not_ok: true
+      severity_error: true
