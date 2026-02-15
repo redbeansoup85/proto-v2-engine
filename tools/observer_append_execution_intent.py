@@ -14,24 +14,24 @@ def _canonical_bytes(obj) -> bytes:
 
 def _read_last_hash(audit_path: Path) -> str | None:
     if not audit_path.is_file():
-        return None
+        return "GENESIS"
     with audit_path.open("rb") as f:
         f.seek(0, 2)
         end = f.tell()
         if end == 0:
-            return None
+            return "GENESIS"
         size = min(8192, end)
         f.seek(end - size)
         chunk = f.read(size)
 
     lines = [ln for ln in chunk.splitlines() if ln.strip()]
     if not lines:
-        return None
+        return "GENESIS"
     try:
         last = json.loads(lines[-1].decode("utf-8"))
         return last.get("chain", {}).get("hash")
     except Exception:
-        return None
+        return "GENESIS"
 
 def main() -> int:
     ap = argparse.ArgumentParser()
