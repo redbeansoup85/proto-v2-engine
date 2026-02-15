@@ -76,9 +76,12 @@ def main() -> int:
         if ph != prev:
             _fail("CHAIN_BREAK", f"line={idx} expected_prev={prev} got_prev={ph}")
 
-        # recompute expected hash
+        # recompute expected hash from the same preimage contract used by producer
+        # (signature fields are appended after hash computation).
         core = dict(obj)
         core.pop("hash", None)
+        core.pop("signature", None)
+        core.pop("signature_meta", None)
         expected = _sha256_hex(_canonical_json(core))
         if expected != h:
             _fail("HASH_MISMATCH", f"line={idx}")
