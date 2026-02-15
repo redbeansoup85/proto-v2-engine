@@ -35,6 +35,67 @@ def _parse_iso_utc_to_ms(ts_utc: str) -> Optional[int]:
         return None
 
 
+def _json_safe(x: Any) -> Any:
+    try:
+        json.dumps(x, ensure_ascii=False, allow_nan=False)
+        return x
+    except Exception:
+        return repr(x)
+
+
+def _safe_str(x: Any) -> Optional[str]:
+    return x if isinstance(x, str) and x else None
+
+
+def _merge_meta(primary: Dict[str, Any], extra: Any) -> Dict[str, Any]:
+    if isinstance(extra, dict):
+        return {**primary, **extra}
+    return primary
+
+
+def _normalize_proof_error(err: Any) -> Dict[str, Any]:
+    if isinstance(err, dict):
+        etype = _safe_str(err.get("type")) or "unknown_proof_error"
+        tf_v = _safe_str(err.get("tf"))
+        msg_v = _safe_str(err.get("message"))
+
+        sev = _safe_str(err.get("severity"))
+        if sev in ("warn", "error"):
+            sev_v = sev
+        elif etype.endswith("_applied"):
+            sev_v = "warn"
+        elif etype.startswith("unknown_"):
+            sev_v = "error"
+        else:
+            sev_v = "error"
+
+        meta: Dict[str, Any] = {}
+        for k, v in err.items():
+            if k in ("type", "severity", "tf", "message", "meta"):
+                continue
+            meta[k] = v
+        meta = _merge_meta(meta, err.get("meta"))
+
+        out: Dict[str, Any] = {"type": etype, "severity": sev_v}
+        if tf_v is not None:
+            out["tf"] = tf_v
+        if msg_v is not None:
+            out["message"] = msg_v
+        if meta:
+            out["meta"] = meta
+        return out
+
+    return {
+        "type": "unknown_proof_error",
+        "severity": "error",
+        "message": "unrecognized proof error shape",
+        "meta": {
+            "raw_type": type(err).__name__,
+            "raw": _json_safe(err),
+        },
+    }
+
+
 def _find_latest_candle_ms(rows: List[Dict[str, Any]]) -> Optional[int]:
     latest_ms: Optional[int] = None
     for row in rows:
@@ -113,15 +174,26 @@ def build_snapshot_payload(
     if not isinstance(proof_obj, dict):
         proof_obj = {}
         raw_bundle["proof"] = proof_obj
-    proof_errors = proof_obj.get("errors")
-    if not isinstance(proof_errors, list):
-        proof_errors = []
-        proof_obj["errors"] = proof_errors
+    raw_errors = proof_obj.get("errors")
+    source_errors: List[Any]
+    if isinstance(raw_errors, list):
+        source_errors = raw_errors
+    elif raw_errors is None:
+        source_errors = []
+    else:
+        source_errors = [raw_errors]
+
+    normalized_errors: List[Dict[str, Any]] = []
+    for err in source_errors:
+        normalized_errors.append(_normalize_proof_error(err))
+    proof_obj["errors"] = normalized_errors
+    proof_errors = normalized_errors
 
     if stale_limit_parse_error:
         proof_errors.append(
             {
                 "type": "stale_limit_env_parse_error",
+                "severity": "error",
                 "message": stale_limit_parse_error,
             }
         )
@@ -129,7 +201,13 @@ def build_snapshot_payload(
     # Normalize stale_limit_ms ONCE here (single source of truth)
     if stale_limit_ms is None or stale_limit_ms <= 0:
         stale_limit_ms = DEFAULT_STALE_LIMIT_MS
-        proof_errors.append({"type": "stale_limit_default_applied", "value_ms": stale_limit_ms})
+        proof_errors.append(
+            {
+                "type": "stale_limit_default_applied",
+                "severity": "warn",
+                "meta": {"value_ms": stale_limit_ms},
+            }
+        )
 
     # Fail-close stale candles: prune candle arrays if last candle timestamp is stale or invalid.
     stale_missing: List[str] = []
@@ -155,7 +233,14 @@ def build_snapshot_payload(
                 stale_key = "candles.%s.stale" % tf
                 if stale_key not in stale_missing:
                     stale_missing.append(stale_key)
-                proof_errors.append({"tf": tf, "type": "candle_ts_parse_error", "message": "invalid candle t"})
+                proof_errors.append(
+                    {
+                        "type": "candle_ts_parse_error",
+                        "severity": "error",
+                        "tf": tf,
+                        "message": "invalid candle t",
+                    }
+                )
                 continue
 
             if abs(snapshot_ts_ms - last_ms) > stale_limit_ms:
