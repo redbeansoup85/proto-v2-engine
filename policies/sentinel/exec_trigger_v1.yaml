@@ -1,0 +1,27 @@
+schema: sentinel_exec_trigger_policy.v1
+policy_id: EXEC_TRIGGER_V1
+version: "1.0"
+description: "Execution trigger rules for SENTINEL_EXEC intent emission"
+rules:
+  - id: OI_DROP_VETO
+    priority: 10
+    when:
+      oi_delta_pct_lte: -0.20
+    action:
+      triggered: false
+      reason_code: NO_TRADE_OI_DROP_VETO
+
+  - id: EXECUTE_CONDITIONS_MET
+    priority: 100
+    when:
+      score_gte: 75
+      direction_in: ["long", "short"]
+      risk_level_in: ["low", "medium"]
+      confidence_gte: 0.70
+    action:
+      triggered: true
+      reason_code: EXECUTE_CONDITIONS_MET
+
+default:
+  triggered: false
+  reason_code: NO_ACTION_CONDITIONS_NOT_MET
