@@ -93,6 +93,19 @@ def _build_funding_history_url(asset: str, market_type: str) -> str:
     return "%s/v5/market/funding/history?%s" % (BYBIT_BASE_URL, query)
 
 
+def _build_lsr_url(asset: str, market_type: str) -> str:
+    category = "linear" if market_type == "perp" else "spot"
+    query = urllib.parse.urlencode(
+        {
+            "category": category,
+            "symbol": asset,
+            "period": "15min",
+            "limit": "1",
+        }
+    )
+    return "%s/v5/market/account-ratio?%s" % (BYBIT_BASE_URL, query)
+
+
 def _parse_open_interest(payload: Dict[str, Any]) -> Optional[float]:
     rows = (((payload or {}).get("result") or {}).get("list") or [])
     if not isinstance(rows, list) or not rows:
@@ -121,6 +134,36 @@ def _parse_funding_rate(payload: Dict[str, Any]) -> Optional[float]:
     except Exception:
         return None
     return float(value) if math.isfinite(value) else None
+
+
+def _parse_lsr(payload: Dict[str, Any]) -> Optional[float]:
+    rows = (((payload or {}).get("result") or {}).get("list") or [])
+    if not isinstance(rows, list) or not rows:
+        return None
+    row = rows[0]
+    if not isinstance(row, dict):
+        return None
+
+    raw_direct = row.get("longShortRatio")
+    if raw_direct is not None:
+        try:
+            value = float(raw_direct)
+            if math.isfinite(value):
+                return float(value)
+        except Exception:
+            return None
+
+    raw_buy = row.get("buyRatio")
+    raw_sell = row.get("sellRatio")
+    try:
+        buy = float(raw_buy)
+        sell = float(raw_sell)
+    except Exception:
+        return None
+    if not math.isfinite(buy) or not math.isfinite(sell) or sell == 0.0:
+        return None
+    ratio = buy / sell
+    return float(ratio) if math.isfinite(ratio) else None
 
 
 def fetch_raw_market_bundle(
@@ -157,7 +200,7 @@ def fetch_raw_market_bundle(
             candles[tf] = []
             errors.append({"tf": tf, "type": "http_error", "message": str(exc)})
 
-    deriv: Dict[str, Optional[float]] = {"oi": None, "funding": None}
+    deriv: Dict[str, Optional[float]] = {"oi": None, "funding": None, "lsr": None}
 
     oi_url = _build_open_interest_url(asset=asset, market_type=market_type)
     endpoints.append(oi_url)
@@ -180,6 +223,17 @@ def fetch_raw_market_bundle(
         deriv["funding"] = funding
     except Exception as exc:
         errors.append({"tf": "deriv", "type": "funding_http_error", "message": str(exc)})
+
+    lsr_url = _build_lsr_url(asset=asset, market_type=market_type)
+    endpoints.append(lsr_url)
+    try:
+        lsr_payload = get_json(lsr_url, timeout_sec)
+        lsr = _parse_lsr(lsr_payload)
+        if lsr is None:
+            errors.append({"tf": "deriv", "type": "lsr_parse_error", "message": "missing_or_non_numeric_lsr"})
+        deriv["lsr"] = lsr
+    except Exception as exc:
+        errors.append({"tf": "deriv", "type": "lsr_http_error", "message": str(exc)})
 
     latency_ms = int((time.time() - start) * 1000)
     return {

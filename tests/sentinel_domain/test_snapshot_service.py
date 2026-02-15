@@ -65,6 +65,19 @@ def _funding_history_fixture() -> Dict[str, Any]:
     }
 
 
+def _lsr_fixture() -> Dict[str, Any]:
+    return {
+        "retCode": 0,
+        "retMsg": "OK",
+        "result": {
+            "category": "linear",
+            "symbol": "BTCUSDT",
+            "list": [{"symbol": "BTCUSDT", "buyRatio": "0.53", "sellRatio": "0.47", "timestamp": "1672051897447"}],
+        },
+        "time": 1672051897447,
+    }
+
+
 def _http_fixture_router(url: str, timeout_sec: float) -> Dict[str, Any]:
     _ = timeout_sec
     if "/v5/market/kline" in url:
@@ -77,6 +90,8 @@ def _http_fixture_router(url: str, timeout_sec: float) -> Dict[str, Any]:
         return _open_interest_fixture()
     if "/v5/market/funding/history" in url:
         return _funding_history_fixture()
+    if "/v5/market/account-ratio" in url:
+        return _lsr_fixture()
     raise AssertionError("unexpected_url:%s" % url)
 
 
@@ -117,6 +132,8 @@ def test_fail_closed_evidence_when_missing_or_proof_errors() -> None:
             return _open_interest_fixture()
         if "/v5/market/funding/history" in url:
             return _funding_history_fixture()
+        if "/v5/market/account-ratio" in url:
+            return _lsr_fixture()
         q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
         interval = (q.get("interval") or ["15"])[0]
         if interval == "240":
@@ -141,6 +158,8 @@ def test_fail_closed_evidence_when_missing_or_proof_errors() -> None:
             return _open_interest_fixture()
         if "/v5/market/funding/history" in url:
             return _funding_history_fixture()
+        if "/v5/market/account-ratio" in url:
+            return _lsr_fixture()
         q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
         interval = (q.get("interval") or ["15"])[0]
         if interval == "240":
@@ -193,6 +212,7 @@ def test_snapshot_service_atomic_write_and_template_shape_lock(tmp_path: Path) -
     assert isinstance(written["tf_state"]["15m"]["rsi"], float)
     assert isinstance(written["deriv"]["oi"], float)
     assert isinstance(written["deriv"]["funding"], float)
+    assert isinstance(written["deriv"]["lsr"], float)
 
 
 def test_fail_closed_oi_keeps_na(tmp_path: Path) -> None:
@@ -235,3 +255,24 @@ def test_fail_closed_funding_keeps_na(tmp_path: Path) -> None:
     )
     written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
     assert written["deriv"]["funding"] == "n/a"
+
+
+def test_fail_closed_lsr_keeps_na(tmp_path: Path) -> None:
+    def _http_lsr_error(url: str, timeout_sec: float) -> Dict[str, Any]:
+        if "/v5/market/account-ratio" in url:
+            raise RuntimeError("lsr-error")
+        return _http_fixture_router(url, timeout_sec)
+
+    ref = capture_market_snapshot(
+        asset="BTCUSDT",
+        ts_utc="2026-02-15T12:00:00Z",
+        snap_dir=tmp_path,
+        snap_id="SNAP-LSR-ERR",
+        venue="bybit",
+        market_type="perp",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=10_000_000_000,
+        http_get_json=_http_lsr_error,
+    )
+    written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
+    assert written["deriv"]["lsr"] == "n/a"
