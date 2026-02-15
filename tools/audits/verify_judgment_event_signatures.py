@@ -7,6 +7,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 try:
     from nacl.signing import VerifyKey
@@ -29,6 +30,23 @@ def _load_lines(path: Path) -> list[str]:
         _fail("EMPTY_LOG", str(path))
     return lines
 
+def _extract_sig_hex(obj: Dict[str, Any]) -> Optional[str]:
+    """
+    Supports both:
+      - signature: "<hex>"
+      - signature: {"signature": "<hex>", ...}
+    """
+    sig = obj.get("signature")
+    if sig is None:
+        return None
+    if isinstance(sig, str) and sig.strip():
+        return sig.strip()
+    if isinstance(sig, dict):
+        s = sig.get("signature")
+        if isinstance(s, str) and s.strip():
+            return s.strip()
+    return None
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Verify ed25519 signatures for judgment_event.v1 JSONL.")
     ap.add_argument("--path", required=True)
@@ -37,7 +55,7 @@ def main() -> int:
 
     sig_required = os.getenv("SIG_REQUIRED", "0") == "1"
 
-    pub_path = Path(args.pub)
+    pub_path = Path(args.pub).expanduser()
     if not pub_path.exists():
         _fail("PUBKEY_NOT_FOUND", str(pub_path))
 
@@ -54,15 +72,11 @@ def main() -> int:
         if not isinstance(h, str) or not RE_HASH.match(h):
             _fail("BAD_HASH", f"line={idx}")
 
-        auth = obj.get("auth")
-        if not auth:
+        sig_hex = _extract_sig_hex(obj)
+        if not sig_hex:
             if sig_required:
-                _fail("MISSING_AUTH", f"line={idx}")
+                _fail("MISSING_SIGNATURE", f"line={idx}")
             continue
-
-        sig_hex = auth.get("signature")
-        if not isinstance(sig_hex, str) or not sig_hex:
-            _fail("BAD_SIGNATURE", f"line={idx}")
 
         try:
             vk.verify(bytes.fromhex(h), bytes.fromhex(sig_hex))
