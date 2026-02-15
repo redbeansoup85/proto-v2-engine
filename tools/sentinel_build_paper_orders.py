@@ -28,6 +28,45 @@ def _load_policy(path: Path) -> dict:
         raise ValueError("policy.schema mismatch")
     return obj
 
+
+def _quality_effects(item: dict) -> dict:
+    q = item.get("quality")
+    if not isinstance(q, dict):
+        raise ValueError(f"invalid quality block for symbol={item.get('symbol')}")
+    eff = q.get("effects")
+    if not isinstance(eff, dict):
+        raise ValueError(f"invalid quality.effects for symbol={item.get('symbol')}")
+
+    size_multiplier = eff.get("size_multiplier")
+    if not isinstance(size_multiplier, (int, float)) or float(size_multiplier) <= 0:
+        raise ValueError(f"invalid quality.effects.size_multiplier for symbol={item.get('symbol')}")
+
+    reduce_only = eff.get("reduce_only")
+    if not isinstance(reduce_only, bool):
+        raise ValueError(f"invalid quality.effects.reduce_only for symbol={item.get('symbol')}")
+
+    # Backward-compatible acceptance: legacy allow_new_entries or canonical new_entries_allowed.
+    new_entries_allowed = eff.get("new_entries_allowed")
+    if new_entries_allowed is None:
+        new_entries_allowed = eff.get("allow_new_entries")
+    if not isinstance(new_entries_allowed, bool):
+        raise ValueError(f"invalid quality.effects.new_entries_allowed for symbol={item.get('symbol')}")
+
+    deny = eff.get("deny")
+    if not isinstance(deny, bool):
+        raise ValueError(f"invalid quality.effects.deny for symbol={item.get('symbol')}")
+
+    return {
+        "mode": q.get("mode"),
+        "severity_max": q.get("severity_max"),
+        "effects": {
+            "size_multiplier": float(size_multiplier),
+            "reduce_only": reduce_only,
+            "new_entries_allowed": new_entries_allowed,
+            "deny": deny,
+        },
+    }
+
 def _match(rule_when: dict, ctx: dict) -> bool:
     # minimal matcher for v0
     def in_list(key, val):
@@ -112,15 +151,38 @@ def main() -> int:
                 break
 
         if emit == "PAPER_ORDER":
+            quality = _quality_effects(it)
+            effects = quality["effects"]
+            if effects["deny"]:
+                continue
+            if not effects["new_entries_allowed"]:
+                continue
+
+            sizing = defaults.get("sizing")
+            if not isinstance(sizing, dict):
+                raise ValueError("policy.defaults.sizing must be object")
+            base_size = sizing.get("equity_pct")
+            if not isinstance(base_size, (int, float)) or float(base_size) <= 0:
+                raise ValueError("policy.defaults.sizing.equity_pct must be > 0 numeric")
+            applied_size = float(base_size) * float(effects["size_multiplier"])
+            if not (applied_size > 0):
+                continue
+
             orders.append({
                 "symbol": it["symbol"],
                 "side": "BUY" if ctx["direction"] == "long" else "SELL",
                 "venue": defaults.get("venue"),
                 "product": defaults.get("product"),
                 "leverage": defaults.get("leverage"),
-                "sizing": defaults.get("sizing"),
+                "sizing": {**sizing, "equity_pct": applied_size},
                 "sl": defaults.get("sl"),
                 "tp": defaults.get("tp"),
+                "quality": quality,
+                "order_meta": {
+                    "size_multiplier_applied": float(effects["size_multiplier"]),
+                    "reduce_only": bool(effects["reduce_only"]),
+                    "new_entries_allowed": bool(effects["new_entries_allowed"]),
+                },
                 "source": {
                     "execution_intent_event_id": ei.get("event_id"),
                     "rule_id": rule_id,
