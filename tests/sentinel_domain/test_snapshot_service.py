@@ -424,3 +424,23 @@ def test_stale_guard_15m_keeps_na_and_marks_missing(tmp_path: Path) -> None:
         http_get_json=_http_fixture_15m_stale,
     )
     assert "candles.15m.stale" in evidence["missing"]
+
+
+def test_stale_default_applied_when_limit_nonpositive() -> None:
+    ts_utc = "2026-02-15T12:00:00Z"
+    snapshot, _, evidence = build_snapshot_payload(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        venue="bybit",
+        market_type="perp",
+        tfs=["15m"],
+        stale_limit_ms=0,
+        http_get_json=_http_fixture_15m_stale,
+    )
+    assert snapshot["tf_state"]["15m"]["vwap"] == "n/a"
+    assert snapshot["tf_state"]["15m"]["price"] == "n/a"
+    assert "candles.15m.stale" in evidence["missing"]
+    assert any(
+        isinstance(err, dict) and err.get("type") == "stale_limit_default_applied"
+        for err in evidence.get("proof_errors", [])
+    )

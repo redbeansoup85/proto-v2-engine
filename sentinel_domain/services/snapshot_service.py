@@ -16,7 +16,7 @@ DEFAULT_SNAPSHOT_DIR = "audits/sentinel/snapshots"
 DEFAULT_VENUE = "bybit"
 DEFAULT_MARKET = "perp"
 DEFAULT_TFS = "1m,5m,15m,1h,4h"
-DEFAULT_STALE_MS = 60000
+DEFAULT_STALE_LIMIT_MS = 60 * 60 * 1000
 
 
 def _canonical_json(obj: Dict[str, Any]) -> str:
@@ -92,7 +92,7 @@ def build_snapshot_payload(
     venue: str,
     market_type: str,
     tfs: List[str],
-    stale_limit_ms: int,
+    stale_limit_ms: Optional[int],
     http_get_json: Optional[Callable[[str, float], Dict[str, Any]]] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     raw_bundle = fetch_raw_market_bundle(
@@ -102,20 +102,24 @@ def build_snapshot_payload(
         market_type=market_type,
         http_get_json=http_get_json,
     )
+    proof_obj = raw_bundle.get("proof")
+    if not isinstance(proof_obj, dict):
+        proof_obj = {}
+        raw_bundle["proof"] = proof_obj
+    proof_errors = proof_obj.get("errors")
+    if not isinstance(proof_errors, list):
+        proof_errors = []
+        proof_obj["errors"] = proof_errors
+
+    if stale_limit_ms is None or stale_limit_ms <= 0:
+        stale_limit_ms = DEFAULT_STALE_LIMIT_MS
+        proof_errors.append({"type": "stale_limit_default_applied", "value_ms": stale_limit_ms})
+
     stale_missing: List[str] = []
     if isinstance(stale_limit_ms, int) and stale_limit_ms > 0:
         snapshot_ts_ms = _parse_iso_utc_to_ms(ts_utc)
         candles_obj = raw_bundle.get("candles")
         if snapshot_ts_ms is not None and isinstance(candles_obj, dict):
-            proof_obj = raw_bundle.get("proof")
-            if not isinstance(proof_obj, dict):
-                proof_obj = {}
-                raw_bundle["proof"] = proof_obj
-            proof_errors = proof_obj.get("errors")
-            if not isinstance(proof_errors, list):
-                proof_errors = []
-                proof_obj["errors"] = proof_errors
-
             for tf in tfs:
                 rows = candles_obj.get(tf)
                 if not isinstance(rows, list) or not rows:
@@ -186,11 +190,14 @@ def capture_market_snapshot(
     venue_v = str(venue or os.getenv("SENTINEL_VENUE") or DEFAULT_VENUE)
     market_v = str(market_type or os.getenv("SENTINEL_MARKET") or DEFAULT_MARKET)
     tfs_v = tfs or parse_tfs(os.getenv("SENTINEL_TFS", DEFAULT_TFS))
-    stale_v_raw = stale_limit_ms if stale_limit_ms is not None else os.getenv("SENTINEL_STALE_MS", str(DEFAULT_STALE_MS))
-    try:
-        stale_v = int(stale_v_raw)
-    except Exception:
-        stale_v = DEFAULT_STALE_MS
+    stale_v: Optional[int] = stale_limit_ms
+    if stale_v is None:
+        stale_env = os.getenv("SENTINEL_STALE_MS")
+        if stale_env is not None:
+            try:
+                stale_v = int(stale_env)
+            except Exception:
+                stale_v = None
 
     snapshot, _, _ = build_snapshot_payload(
         asset=asset,
