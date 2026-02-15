@@ -3,7 +3,7 @@
 import argparse
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -25,7 +25,7 @@ def main() -> int:
     record = {
         "schema": "observer_event.v1",
         "event_kind": "execution_intent",
-        "ts_append_iso": datetime.utcnow().isoformat() + "Z",
+        "ts_append_iso": datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
         "payload": intent,
     }
 
