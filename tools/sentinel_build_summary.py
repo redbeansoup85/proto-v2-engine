@@ -90,6 +90,23 @@ def _read_leg(domain_root: Path, repo_root: Path, symbol: str, tf: str, ts: str)
     signal = event.get("signal")
     if not isinstance(signal, dict):
         raise ValueError(f"signal must be object in {event_path}")
+    evidence = event.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+    proof_errors = evidence.get("proof_errors")
+    if not isinstance(proof_errors, list):
+        proof_errors = []
+    error_count = 0
+    warn_count = 0
+    for err in proof_errors:
+        if not isinstance(err, dict):
+            continue
+        severity = err.get("severity")
+        if severity == "error":
+            error_count += 1
+        elif severity == "warn":
+            warn_count += 1
+    severity_max = "error" if error_count > 0 else ("warn" if warn_count > 0 else "none")
 
     leg = {
         "symbol": signal.get("symbol"),
@@ -101,6 +118,10 @@ def _read_leg(domain_root: Path, repo_root: Path, symbol: str, tf: str, ts: str)
         "confidence": signal.get("confidence"),
         "snapshot_path": _extract_snapshot_path(event, symbol, tf, ts),
         "domain_event_path": str(event_path),
+        "evidence_ok": bool(evidence.get("ok")),
+        "proof_error_error_count": int(error_count),
+        "proof_error_warn_count": int(warn_count),
+        "proof_error_severity_max": severity_max,
     }
 
     if leg["symbol"] != symbol:
@@ -336,7 +357,33 @@ def main() -> int:
             if not isinstance(item["snapshot_path"], str) or not item["snapshot_path"]:
                 raise ValueError(f"{symbol}: final snapshot_path missing")
 
+            err_cnt = sum(int((legs.get(tf) or {}).get("proof_error_error_count", 0)) for tf in tfs)
+            warn_cnt = sum(int((legs.get(tf) or {}).get("proof_error_warn_count", 0)) for tf in tfs)
+            severity_max = "error" if err_cnt > 0 else ("warn" if warn_cnt > 0 else "none")
+            evidence_ok = bool(tfs) and all(bool((legs.get(tf) or {}).get("evidence_ok", False)) for tf in tfs)
+            item["quality"] = {
+                "evidence_ok": evidence_ok,
+                "error_count": int(err_cnt),
+                "warn_count": int(warn_cnt),
+                "severity_max": severity_max,
+            }
+
             items.append(item)
+
+        error_total = sum(int((it.get("quality") or {}).get("error_count", 0)) for it in items)
+        warn_total = sum(int((it.get("quality") or {}).get("warn_count", 0)) for it in items)
+        ok_items = [
+            it
+            for it in items
+            if bool((it.get("quality") or {}).get("evidence_ok"))
+            and (it.get("quality") or {}).get("severity_max") != "error"
+        ]
+        bad_items = [
+            it
+            for it in items
+            if (not bool((it.get("quality") or {}).get("evidence_ok")))
+            or (it.get("quality") or {}).get("severity_max") == "error"
+        ]
 
         summary = {
             "schema": "sentinel_summary.v0",
@@ -344,6 +391,13 @@ def main() -> int:
             "symbols": symbols,
             "tfs": tfs,
             "items": items,
+            "rollup": {
+                "error_total": int(error_total),
+                "warn_total": int(warn_total),
+                "ok_count": int(len(ok_items)),
+                "bad_count": int(len(bad_items)),
+                "bad_symbols": [it["symbol"] for it in bad_items],
+            },
             "meta": {"build_sha": _build_sha(repo_root), "mode": "consensus_stable_v1"},
         }
 
