@@ -13,12 +13,51 @@ DERIV_ROOT="/tmp/metaos_derivatives"
 DOMAIN_ROOT="/tmp/metaos_domain_events"
 
 for ((c=1; c<=CYCLES; c++)); do
-  TS="$(date -u +%Y%m%dT%H%M%SZ)"
-  TS_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  TS_COMPACT="$(date -u +%Y%m%dT%H%M%SZ)"
+  export TS_COMPACT
+  TS_ISO="$(python - <<'PY'
+import os
+ts=os.environ["TS_COMPACT"]
+y=ts[0:4]; m=ts[4:6]; d=ts[6:8]
+hh=ts[9:11]; mm=ts[11:13]; ss=ts[13:15]
+print(f"{y}-{m}-{d}T{hh}:{mm}:{ss}Z")
+PY
+)"
+  TS="$TS_COMPACT"
   echo "MODE=$MODE"
   echo "================ Cycle $c ($TS) ================"
 
   IFS=',' read -r -a SYM_ARR <<< "$SYMBOLS"
+  OVERRIDE_AUDIT_JSONL="var/audit_chain/override_events.jsonl"
+
+  # Active override banner (non-fatal at banner stage)
+  if [ ! -f "$OVERRIDE_AUDIT_JSONL" ]; then
+    echo "ACTIVE_OVERRIDE: audit missing (fail-closed will apply on guard invocation)"
+  else
+    BANNER_ANY=0
+    BANNER_WARN=0
+    BANNER_SEEN="|"
+    for S in "${SYM_ARR[@]}"; do
+      case "$BANNER_SEEN" in
+        *"|$S|"*) continue ;;
+      esac
+      BANNER_SEEN="${BANNER_SEEN}${S}|"
+      BANNER_JSON="$(python tools/sentinel/sentinel_override_guard.py \
+        --audit-jsonl "$OVERRIDE_AUDIT_JSONL" \
+        --symbol "$S" \
+        --now-ts "$TS_ISO" 2>/dev/null)" || { BANNER_WARN=1; break; }
+      BANNER_LINE="$(printf '%s' "$BANNER_JSON" | python -c 'import json,sys; o=json.loads(sys.stdin.read()); a=o.get("active_override"); print("" if not a else "{} action={} until={} req={} appr={}".format(a.get("symbol",""), a.get("requested_action",""), a.get("expires_at",""), a.get("request_event_id",""), a.get("approval_event_id","")) )')" || { BANNER_WARN=1; break; }
+      if [ -n "$BANNER_LINE" ]; then
+        echo "ACTIVE_OVERRIDE: $BANNER_LINE"
+        BANNER_ANY=1
+      fi
+    done
+    if [ "$BANNER_WARN" -eq 1 ]; then
+      echo "ACTIVE_OVERRIDE: banner unavailable (fail-closed will apply on guard invocation)"
+    elif [ "$BANNER_ANY" -eq 0 ]; then
+      echo "ACTIVE_OVERRIDE: none"
+    fi
+  fi
 
   for S in "${SYM_ARR[@]}"; do
     # -----------------------------
@@ -43,7 +82,7 @@ for ((c=1; c<=CYCLES; c++)); do
       cat > "$DER" <<JSON
 {
   "symbol": "$S",
-  "ts_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "ts_iso": "$TS_ISO",
   "derivatives": {
     "open_interest": $OI
   }
@@ -71,7 +110,7 @@ JSON
 {
   "symbol": "$S",
   "timeframe": "$TF",
-  "ts_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "ts_iso": "$TS_ISO",
   "ohlc": {
     "open": 24800,
     "high": 24900,
@@ -114,7 +153,6 @@ JSON
   # -----------------------------
   # Override guard (fail-closed)
   # -----------------------------
-  OVERRIDE_AUDIT_JSONL="var/audit_chain/override_events.jsonl"
   EXEC_POLICY_SHA256="c3c14d953ffae4cd1966d26d2c05d0d5c418fd7591981d0096f4e7554697018c"
   ZERO64="0000000000000000000000000000000000000000000000000000000000000000"
   ALLOWED_SYMBOLS=()
