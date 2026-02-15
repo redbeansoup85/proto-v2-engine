@@ -239,17 +239,25 @@ def _maybe_sign_event_hash(event_hash_hex: str) -> Tuple[Optional[Dict[str, Any]
     try:
         cfg = load_sig_config_from_env()  # type: ignore[misc]
     except Exception as e:
-        return None, {"enabled": False, "reason": "SIG_CONFIG_LOAD_FAIL", "detail": str(e)}
+        return None, {"enabled": False, "reason": "SIG_CONFIG_LOAD_FAIL", "err": str(e)}
 
-    if not cfg or not isinstance(cfg, dict) or not cfg.get("enabled"):
+    if not cfg:
+        return None, {"enabled": False, "reason": "SIG_DISABLED"}
+
+    cfg_enabled = bool(cfg.get("enabled")) if isinstance(cfg, dict) else bool(getattr(cfg, "enabled", False))
+    if not cfg_enabled:
         return None, {"enabled": False, "reason": "SIG_DISABLED"}
 
     try:
         sig = sign_hash_hex(event_hash_hex, cfg)  # type: ignore[misc]
-        meta = {"enabled": True, "key_id": cfg.get("key_id", "n/a")}
+        if not sig:
+            return None, {"enabled": False, "reason": "SIG_DISABLED"}
+
+        key_id = cfg.get("key_id", "n/a") if isinstance(cfg, dict) else str(getattr(cfg, "key_id", "n/a"))
+        meta = {"enabled": True, "reason": "SIG_OK", "key_id": key_id}
         return sig, meta
     except Exception as e:
-        return None, {"enabled": False, "reason": "SIG_SIGN_FAIL", "detail": str(e)}
+        return None, {"enabled": False, "reason": "SIG_ERROR", "err": str(e)}
 
 
 def main() -> int:
@@ -299,10 +307,11 @@ def main() -> int:
 
     # Optional signature (AFTER hash); meta/signature MUST NOT affect hash
     sig, sig_meta = _maybe_sign_event_hash(event_hash)
-    # Only attach signature-related fields if enabled/available (avoid verifier drift)
+    # Always record signature_meta for audit/debug, even when signing is disabled/fails.
+    event_full["signature_meta"] = sig_meta
+
     if sig is not None:
         event_full["signature"] = sig
-        event_full["signature_meta"] = sig_meta
 
     _append_jsonl(audit_path, event_full)
 
