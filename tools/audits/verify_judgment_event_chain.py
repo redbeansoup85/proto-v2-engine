@@ -79,6 +79,7 @@ def main() -> int:
         # recompute expected hash
         core = dict(obj)
         core.pop("hash", None)
+        core.pop("auth", None)
         expected = _sha256_hex(_canonical_json(core))
         if expected != h:
             _fail("HASH_MISMATCH", f"line={idx}")

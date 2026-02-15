@@ -61,7 +61,34 @@ def main() -> int:
         },
     }
 
-    h = _sha256_hex(_canonical_bytes(record))
+    # --- LOCK-safe: ensure payload.evidence_refs contains intent_file (before hash) ---
+    import os
+    intent_abs = os.path.abspath(args.intent_file)
+    payload = record.get('payload')
+    if not isinstance(payload, dict):
+        raise SystemExit('CONTRACT_FAIL: payload must be object')
+    ev = payload.get('evidence_refs')
+    if not isinstance(ev, list):
+        ev = []
+    # normalize + dedupe
+    ev2 = []
+    seen = set()
+    for x in ev:
+        if isinstance(x, (str,int,float)):
+            s = str(x).strip()
+            if s and s not in seen:
+                ev2.append(s); seen.add(s)
+    if intent_abs not in seen:
+        ev2.append(intent_abs)
+    if not ev2:
+        raise SystemExit('CONTRACT_FAIL: payload.evidence_refs must be non-empty')
+    payload['evidence_refs'] = ev2
+    # chain.hash preimage rule: compute over record with chain.hash excluded (no self-reference)
+    tmp = json.loads(json.dumps(record, ensure_ascii=False))
+    tmp.setdefault('chain', {})
+    tmp['chain'].pop('hash', None)
+    h = _sha256_hex(_canonical_bytes(tmp))
+
     record["chain"]["hash"] = h
 
     with audit_path.open("ab") as f:

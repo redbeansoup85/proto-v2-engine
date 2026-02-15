@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "proto-v2-engine"
 version = "0.0.0"
-dependencies = ["pydantic>=2.0", "fastapi>=0.100", "jsonschema>=4.21"]
+dependencies = ["pydantic>=2.0", "fastapi>=0.100", "jsonschema>=4.21", "pynacl>=1.5"]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]

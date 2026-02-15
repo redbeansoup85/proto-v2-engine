@@ -1,0 +1,7 @@
+version: "1.0"
+id: "paper_fill_v1"
+defaults:
+  sim_model: "MARKET_AT_SNAPSHOT_CLOSE_V1"
+  fee_bps: 6.0
+  slippage_bps: 2.0
+  fee_ccy: "USDT"
