@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from sentinel_domain.adapters.market.bybit_rest import fetch_raw_market_bundle
 from sentinel_domain.features.indicators import compute_tf_indicators
 from sentinel_domain.features.snapshot_builder import SNAPSHOT_TEMPLATE, make_template_snapshot
+import sentinel_domain.services.snapshot_service as snapshot_service
 from sentinel_domain.services.snapshot_service import build_snapshot_payload, capture_market_snapshot
 
 
@@ -484,3 +485,54 @@ def test_stale_env_parse_error_recorded_and_default_applied(tmp_path: Path, monk
         isinstance(err, dict) and err.get("type") == "stale_limit_default_applied"
         for err in evidence.get("proof_errors", [])
     )
+
+
+def test_proof_errors_schema_normalized_v1(monkeypatch) -> None:
+    def _fake_raw_bundle(**_: Any) -> Dict[str, Any]:
+        return {
+            "schema": "raw_market_bundle.v1",
+            "venue": "bybit",
+            "market_type": "perp",
+            "asset": "BTCUSDT",
+            "ts_utc": "2026-02-15T12:00:00Z",
+            "candles": {"15m": [{"t": "0", "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}]},
+            "deriv": {"oi": None, "funding": None, "lsr": None},
+            "proof": {
+                "source": "rest",
+                "endpoints": [],
+                "latency_ms": 1,
+                "errors": [
+                    "oops",
+                    {"type": "legacy_error", "value_ms": 123},
+                ],
+            },
+        }
+
+    monkeypatch.setattr(snapshot_service, "fetch_raw_market_bundle", _fake_raw_bundle)
+    _, _, evidence = build_snapshot_payload(
+        asset="BTCUSDT",
+        ts_utc="2026-02-15T12:00:00Z",
+        venue="bybit",
+        market_type="perp",
+        tfs=["15m"],
+        stale_limit_ms=None,
+        stale_limit_parse_error="invalid_int:abc",
+    )
+
+    for err in evidence["proof_errors"]:
+        assert isinstance(err, dict)
+        assert isinstance(err.get("type"), str) and bool(err["type"])
+        assert err.get("severity") in ("warn", "error")
+
+    stale_default = next(err for err in evidence["proof_errors"] if err.get("type") == "stale_limit_default_applied")
+    assert stale_default.get("severity") == "warn"
+    assert "value_ms" not in stale_default
+    assert isinstance(stale_default.get("meta"), dict) and "value_ms" in stale_default["meta"]
+
+    stale_parse = next(err for err in evidence["proof_errors"] if err.get("type") == "stale_limit_env_parse_error")
+    assert stale_parse.get("severity") == "error"
+
+    unknown = next(err for err in evidence["proof_errors"] if err.get("type") == "unknown_proof_error")
+    assert unknown.get("severity") == "error"
+    assert isinstance(unknown.get("meta"), dict)
+    assert "raw" in unknown["meta"]
