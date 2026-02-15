@@ -44,3 +44,6 @@ var/
 
 # Sentinel local debug
 policies/sentinel/paper_orders_debug_v1.yaml
+
+# local signing keys
+keys/
