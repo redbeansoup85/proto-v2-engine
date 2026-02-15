@@ -34,7 +34,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from sentinel_domain.services.snapshot_service import capture_market_snapshot
+from sentinel_domain.services.snapshot_service import DEFAULT_STALE_LIMIT_MS, capture_market_snapshot
 
 # --- optional signature (do NOT hard-depend)
 _SIG_AVAILABLE = False
@@ -201,7 +201,13 @@ def _capture_market_snapshot(asset: str, ts_utc: str, snap_dir: Path) -> str:
     """
     snap_id = _mk_id("SNAP")
     try:
-        return capture_market_snapshot(asset=asset, ts_utc=ts_utc, snap_dir=snap_dir, snap_id=snap_id)
+        return capture_market_snapshot(
+            asset=asset,
+            ts_utc=ts_utc,
+            snap_dir=snap_dir,
+            snap_id=snap_id,
+            stale_limit_ms=DEFAULT_STALE_LIMIT_MS,
+        )
     except Exception as e:
         _fail("SNAPSHOT_WRITE_FAIL", str(e))
 
