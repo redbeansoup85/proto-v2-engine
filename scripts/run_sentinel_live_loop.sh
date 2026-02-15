@@ -121,6 +121,16 @@ JSON
     --policy-sha256 "c3c14d953ffae4cd1966d26d2c05d0d5c418fd7591981d0096f4e7554697018c" \
     --execution-mode "$EXECUTION_MODE" || exit 1
 
+  # -----------------------------
+  # Observer Hub append (execution_intent)
+  # -----------------------------
+  LAST_INTENT="$(ls -1t /tmp/orch_outbox_live/SENTINEL_EXEC/intent_*.json 2>/dev/null | head -n 1 || true)"
+  if [ -n "$LAST_INTENT" ]; then
+    python tools/observer_append_execution_intent.py \
+      --intent-file "$LAST_INTENT" \
+      --audit-jsonl "var/audit_chain/execution_intent.jsonl" || exit 1
+  fi
+
 
   # -----------------------------
   # Console dashboard
