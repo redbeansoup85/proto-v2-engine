@@ -117,6 +117,8 @@ JSON
   python tools/sentinel_build_execution_intent.py \
     --summary-file "$SUMMARY_OUT" \
     --outbox "/tmp/orch_outbox_live/SENTINEL_EXEC" \
+    --policy-file "policies/sentinel/exec_trigger_v1.yaml" \
+    --policy-sha256 "c3c14d953ffae4cd1966d26d2c05d0d5c418fd7591981d0096f4e7554697018c" \
     --execution-mode "$EXECUTION_MODE" || exit 1
 
 

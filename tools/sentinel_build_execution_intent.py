@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
+import yaml
 import glob
 import os
 import re
@@ -140,12 +142,22 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary-file", required=True)
     ap.add_argument("--outbox", required=True, help="directory to write intent JSON")
+    ap.add_argument("--policy-file", default="policies/sentinel/exec_trigger_v1.yaml", help="YAML trigger policy file")
+    ap.add_argument("--policy-sha256", default=None, help="If set, fail-closed unless sha256(policy_file) matches")
     ap.add_argument("--dry-run", type=int, default=1, help="1 = DRY_RUN (default), 0 = live intent")
     ap.add_argument("--execution-mode", choices=["dry_run","paper","live"], default=None, help="Execution emission mode (SSOT). If omitted, derived from --dry-run for backward compatibility.")
     args = ap.parse_args()
     execution_mode = args.execution_mode if args.execution_mode else ("dry_run" if bool(int(args.dry_run)) else "paper")
     if execution_mode not in ("dry_run","paper","live"):
         raise ValueError(f"invalid execution_mode: {execution_mode}")
+    
+    policy_path = Path(args.policy_file)
+    if not policy_path.is_file():
+        raise ValueError(f"policy file not found: {policy_path}")
+    policy_sha = _policy_sha256(policy_path)
+    if args.policy_sha256 is not None and policy_sha != args.policy_sha256:
+        raise ValueError(f"policy sha256 mismatch: expected={args.policy_sha256} got={policy_sha}")
+    policy = _load_trigger_policy(policy_path)
     try:
         summary_path = Path(args.summary_file)
         outbox_dir = Path(args.outbox)
@@ -180,14 +192,7 @@ def main() -> int:
             oi_delta_pct_v = float(oi_delta_pct) if oi_delta_pct is not None else _compute_oi_delta_pct(symbol, ts)
 
             score, direction, risk, conf, snap = _select_signal(item)
-            triggered, reason = _evaluate_trigger(
-                score=score,
-                direction=direction,
-                risk_level=risk,
-                confidence=conf,
-                oi_delta_pct=oi_delta_pct_v,
-            )
-
+            triggered, reason = _eval_trigger(policy, score=score, direction=direction, risk_level=risk, confidence=conf, oi_delta_pct=oi_delta_pct_v)
             intents.append(
                 {
                     "symbol": symbol,
@@ -220,6 +225,9 @@ def main() -> int:
                 "producer": "sentinel.exec",
                 "version": "0",
                 "build_sha": build_sha,
+                "policy_id": policy.get("policy_id"),
+                "policy_version": policy.get("version"),
+                "policy_sha256": policy_sha,
             },
             "evidence_refs": [
                 {
@@ -240,43 +248,91 @@ def main() -> int:
 
 
 
+
+def _policy_sha256(path: Path) -> str:
+  return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def _load_trigger_policy(path: Path) -> dict:
+  obj = yaml.safe_load(path.read_text(encoding="utf-8"))
+  if not isinstance(obj, dict):
+      raise ValueError("policy must be a YAML mapping")
+  if obj.get("schema") != "sentinel_exec_trigger_policy.v1":
+      raise ValueError("policy.schema mismatch")
+  return obj
+
+def _eval_trigger(policy: dict, *, score: float, direction: str | None, risk_level: str, confidence: float, oi_delta_pct: float | None) -> tuple[bool, str]:
+  rules = policy.get("rules", [])
+  if not isinstance(rules, list):
+      raise ValueError("policy.rules must be list")
+
+  rules_sorted = sorted(rules, key=lambda r: int(r.get("priority", 0)))
+
+  for r in rules_sorted:
+      when = r.get("when", {})
+      action = r.get("action", {})
+      if not isinstance(when, dict) or not isinstance(action, dict):
+          continue
+
+      ok = True
+      if "oi_delta_pct_lte" in when:
+          thr = float(when["oi_delta_pct_lte"])
+          ok = ok and (oi_delta_pct is not None and float(oi_delta_pct) <= thr)
+
+      if "score_gte" in when:
+          ok = ok and (float(score) >= float(when["score_gte"]))
+
+      if "direction_in" in when:
+          ok = ok and (direction in list(when["direction_in"]))
+
+      if "risk_level_in" in when:
+          ok = ok and (risk_level in list(when["risk_level_in"]))
+
+      if "confidence_gte" in when:
+          ok = ok and (float(confidence) >= float(when["confidence_gte"]))
+
+      if ok:
+          return (bool(action.get("triggered")), str(action.get("reason_code", "POLICY_MATCH")))
+
+  d = policy.get("default", {})
+  return (bool(d.get("triggered", False)), str(d.get("reason_code", "NO_ACTION_CONDITIONS_NOT_MET")))
+
 def _extract_open_interest(deriv_obj):
-    try:
-        return float(deriv_obj.get("derivatives", {}).get("open_interest"))
-    except Exception:
-        return None
+  try:
+      return float(deriv_obj.get("derivatives", {}).get("open_interest"))
+  except Exception:
+      return None
 
 def _compute_oi_delta_pct(symbol: str, ts: str, deriv_root: str = "/tmp/metaos_derivatives"):
-    """
-    Compute % change in OI between current deriv_<ts>.json and previous deriv_*.json.
-    Returns float or None.
-    """
-    sym_dir = os.path.join(deriv_root, symbol)
-    cur_path = os.path.join(sym_dir, f"deriv_{ts}.json")
-    if not os.path.isfile(cur_path):
-        return None
+  """
+  Compute % change in OI between current deriv_<ts>.json and previous deriv_*.json.
+  Returns float or None.
+  """
+  sym_dir = os.path.join(deriv_root, symbol)
+  cur_path = os.path.join(sym_dir, f"deriv_{ts}.json")
+  if not os.path.isfile(cur_path):
+      return None
 
-    files = sorted(glob.glob(os.path.join(sym_dir, "deriv_*.json")))
-    if cur_path not in files:
-        files = sorted(set(files + [cur_path]))
+  files = sorted(glob.glob(os.path.join(sym_dir, "deriv_*.json")))
+  if cur_path not in files:
+      files = sorted(set(files + [cur_path]))
 
-    idx = files.index(cur_path)
-    if idx == 0:
-        return None
+  idx = files.index(cur_path)
+  if idx == 0:
+      return None
 
-    prev_path = files[idx - 1]
-    try:
-        cur = json.load(open(cur_path, "r", encoding="utf-8"))
-        prev = json.load(open(prev_path, "r", encoding="utf-8"))
-    except Exception:
-        return None
+  prev_path = files[idx - 1]
+  try:
+      cur = json.load(open(cur_path, "r", encoding="utf-8"))
+      prev = json.load(open(prev_path, "r", encoding="utf-8"))
+  except Exception:
+      return None
 
-    cur_oi = _extract_open_interest(cur)
-    prev_oi = _extract_open_interest(prev)
-    if cur_oi is None or prev_oi in (None, 0.0):
-        return None
+  cur_oi = _extract_open_interest(cur)
+  prev_oi = _extract_open_interest(prev)
+  if cur_oi is None or prev_oi in (None, 0.0):
+      return None
 
-    return (cur_oi - prev_oi) / prev_oi * 100.0
+  return (cur_oi - prev_oi) / prev_oi * 100.0
 
 
 if __name__ == "__main__":
