@@ -97,6 +97,7 @@ def build_snapshot_payload(
     market_type: str,
     tfs: List[str],
     stale_limit_ms: Optional[int],
+    stale_limit_parse_error: Optional[str] = None,
     http_get_json: Optional[Callable[[str, float], Dict[str, Any]]] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     raw_bundle = fetch_raw_market_bundle(
@@ -116,6 +117,14 @@ def build_snapshot_payload(
     if not isinstance(proof_errors, list):
         proof_errors = []
         proof_obj["errors"] = proof_errors
+
+    if stale_limit_parse_error:
+        proof_errors.append(
+            {
+                "type": "stale_limit_env_parse_error",
+                "message": stale_limit_parse_error,
+            }
+        )
 
     # Normalize stale_limit_ms ONCE here (single source of truth)
     if stale_limit_ms is None or stale_limit_ms <= 0:
@@ -201,6 +210,7 @@ def capture_market_snapshot(
 
     # capture_market_snapshot: keep env parsing only; normalize is done in build_snapshot_payload
     stale_v: Optional[int] = stale_limit_ms
+    stale_env_parse_error: Optional[str] = None
     if stale_v is None:
         stale_env = os.getenv("SENTINEL_STALE_MS")
         if stale_env is not None:
@@ -208,6 +218,7 @@ def capture_market_snapshot(
                 stale_v = int(stale_env)
             except Exception:
                 stale_v = None
+                stale_env_parse_error = "invalid_int:%s" % stale_env
 
     snapshot, _, _ = build_snapshot_payload(
         asset=asset,
@@ -216,6 +227,7 @@ def capture_market_snapshot(
         market_type=market_v,
         tfs=tfs_v,
         stale_limit_ms=stale_v,
+        stale_limit_parse_error=stale_env_parse_error,
         http_get_json=http_get_json,
     )
 

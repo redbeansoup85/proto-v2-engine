@@ -444,3 +444,43 @@ def test_stale_default_applied_when_limit_nonpositive() -> None:
         isinstance(err, dict) and err.get("type") == "stale_limit_default_applied"
         for err in evidence.get("proof_errors", [])
     )
+
+
+def test_stale_env_parse_error_recorded_and_default_applied(tmp_path: Path, monkeypatch) -> None:
+    ts_utc = "2026-02-15T12:00:00Z"
+    monkeypatch.setenv("SENTINEL_STALE_MS", "abc")
+
+    ref = capture_market_snapshot(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        snap_dir=tmp_path,
+        snap_id="SNAP-STALE-ENV-PARSE",
+        venue="bybit",
+        market_type="perp",
+        tfs=["15m"],
+        stale_limit_ms=None,
+        http_get_json=_http_fixture_15m_stale,
+    )
+    written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
+    assert written["tf_state"]["15m"]["vwap"] == "n/a"
+    assert written["tf_state"]["15m"]["price"] == "n/a"
+
+    _, _, evidence = build_snapshot_payload(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        venue="bybit",
+        market_type="perp",
+        tfs=["15m"],
+        stale_limit_ms=None,
+        stale_limit_parse_error="invalid_int:abc",
+        http_get_json=_http_fixture_15m_stale,
+    )
+    assert "candles.15m.stale" in evidence["missing"]
+    assert any(
+        isinstance(err, dict) and err.get("type") == "stale_limit_env_parse_error"
+        for err in evidence.get("proof_errors", [])
+    )
+    assert any(
+        isinstance(err, dict) and err.get("type") == "stale_limit_default_applied"
+        for err in evidence.get("proof_errors", [])
+    )
