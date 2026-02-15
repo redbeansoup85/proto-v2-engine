@@ -79,6 +79,39 @@ def compute_vwap_from_candles(candles: List[Dict[str, object]], lookback: int) -
     return float(vwap)
 
 
+def compute_cvd_proxy_from_candles(candles: List[Dict[str, object]], lookback: int) -> Optional[float]:
+    # CVD proxy is candle-based signed-volume sum; not trade-level CVD.
+    # Uses +v when close>=open, otherwise -v over trailing lookback candles.
+    if lookback <= 0:
+        return None
+
+    tail = candles[-lookback:]
+    if len(tail) < lookback:
+        return None
+
+    valid_count = 0
+    signed_sum = 0.0
+    for row in tail:
+        if not isinstance(row, dict):
+            continue
+        try:
+            o = float(row.get("o"))  # type: ignore[arg-type]
+            c = float(row.get("c"))  # type: ignore[arg-type]
+            v = float(row.get("v"))  # type: ignore[arg-type]
+        except Exception:
+            continue
+        if not (math.isfinite(o) and math.isfinite(c) and math.isfinite(v)):
+            continue
+        signed_sum += v if c >= o else -v
+        valid_count += 1
+
+    if valid_count < lookback:
+        return None
+    if not math.isfinite(signed_sum):
+        return None
+    return float(signed_sum)
+
+
 def compute_tf_indicators(candles_by_tf: Dict[str, List[Dict[str, float]]]) -> Dict[str, Dict[str, Optional[float]]]:
     out: Dict[str, Dict[str, Optional[float]]] = {}
     for tf, rows in candles_by_tf.items():

@@ -4,7 +4,7 @@ import copy
 import math
 from typing import Any, Dict, List, Optional
 
-from sentinel_domain.features.indicators import compute_vwap_from_candles
+from sentinel_domain.features.indicators import compute_cvd_proxy_from_candles, compute_vwap_from_candles
 
 # Exact template structure copied from tools/sentinel/consume_trade_intent.py
 SNAPSHOT_TEMPLATE = {
@@ -26,6 +26,7 @@ SNAPSHOT_TEMPLATE = {
     },
 }
 VWAP_LOOKBACK = 50
+CVD_PROXY_LOOKBACK = 50
 
 
 def make_template_snapshot(asset: str, ts_utc: str) -> Dict[str, Any]:
@@ -99,5 +100,12 @@ def build_snapshot_from_template(
             deriv["funding"] = float(raw_funding)
         if isinstance(raw_lsr, (int, float)) and math.isfinite(float(raw_lsr)):
             deriv["lsr"] = float(raw_lsr)
+
+        candles_15m = ((raw_bundle.get("candles") or {}) if isinstance(raw_bundle, dict) else {}).get("15m")
+        cvd_proxy = deriv.get("cvd_proxy")
+        if isinstance(candles_15m, list) and isinstance(cvd_proxy, dict):
+            cvd = compute_cvd_proxy_from_candles(candles_15m, CVD_PROXY_LOOKBACK)
+            if isinstance(cvd, float) and math.isfinite(cvd):
+                cvd_proxy["futures"] = float(cvd)
 
     return snapshot

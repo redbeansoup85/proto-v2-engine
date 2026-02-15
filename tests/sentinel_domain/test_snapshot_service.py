@@ -110,6 +110,17 @@ def _http_fixture_zero_volume(url: str, timeout_sec: float) -> Dict[str, Any]:
     return _http_fixture_router(url, timeout_sec)
 
 
+def _http_fixture_15m_short(url: str, timeout_sec: float) -> Dict[str, Any]:
+    if "/v5/market/kline" in url:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        interval = (q.get("interval") or ["15"])[0]
+        now_ms = int(time.time() * 1000) - (300 * 60 * 1000)
+        interval_min = int(interval)
+        count = 10 if interval == "15" else 260
+        return _mk_bybit_kline_payload(interval_minutes=interval_min, count=count, start_ms=now_ms)
+    return _http_fixture_router(url, timeout_sec)
+
+
 def test_adapter_parses_fixture_candles_ascending_and_numeric() -> None:
     raw = fetch_raw_market_bundle(
         asset="BTCUSDT",
@@ -229,6 +240,7 @@ def test_snapshot_service_atomic_write_and_template_shape_lock(tmp_path: Path) -
     assert isinstance(written["deriv"]["oi"], float)
     assert isinstance(written["deriv"]["funding"], float)
     assert isinstance(written["deriv"]["lsr"], float)
+    assert isinstance(written["deriv"]["cvd_proxy"]["futures"], float)
 
 
 def test_fail_closed_oi_keeps_na(tmp_path: Path) -> None:
@@ -329,3 +341,19 @@ def test_fail_closed_vwap_keeps_na_on_zero_volume(tmp_path: Path) -> None:
     )
     written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
     assert written["tf_state"]["15m"]["vwap"] == "n/a"
+
+
+def test_fail_closed_cvd_proxy_futures_keeps_na_on_short_15m(tmp_path: Path) -> None:
+    ref = capture_market_snapshot(
+        asset="BTCUSDT",
+        ts_utc="2026-02-15T12:00:00Z",
+        snap_dir=tmp_path,
+        snap_id="SNAP-CVD-ERR",
+        venue="bybit",
+        market_type="perp",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=10_000_000_000,
+        http_get_json=_http_fixture_15m_short,
+    )
+    written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
+    assert written["deriv"]["cvd_proxy"]["futures"] == "n/a"
