@@ -322,7 +322,7 @@ def test_fail_closed_lsr_keeps_na(tmp_path: Path) -> None:
         market_type="perp",
         tfs=["1m", "5m", "15m", "1h", "4h"],
         stale_limit_ms=10_000_000_000,
-        http_get_json=_http_fixture_router,
+        http_get_json=_http_lsr_error,
     )
     written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
     assert written["deriv"]["lsr"] == "n/a"
