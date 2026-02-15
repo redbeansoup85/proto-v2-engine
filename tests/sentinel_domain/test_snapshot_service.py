@@ -276,3 +276,24 @@ def test_fail_closed_lsr_keeps_na(tmp_path: Path) -> None:
     )
     written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
     assert written["deriv"]["lsr"] == "n/a"
+
+
+def test_deriv_guard_non_perp_keeps_na_and_sets_error() -> None:
+    ts_utc = "2026-02-15T12:00:00Z"
+    snapshot, _, evidence = build_snapshot_payload(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        venue="bybit",
+        market_type="spot",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=10_000_000_000,
+        http_get_json=_http_fixture_router,
+    )
+
+    assert snapshot["deriv"]["oi"] == "n/a"
+    assert snapshot["deriv"]["funding"] == "n/a"
+    assert snapshot["deriv"]["lsr"] == "n/a"
+    assert any(
+        isinstance(err, dict) and err.get("type") == "unsupported_deriv_market_type"
+        for err in evidence.get("proof_errors", [])
+    )
