@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+from auralis_v1.core.signature import load_sig_config_from_env, sign_hash_hex
+
 ALLOWED_SIDE = {"LONG", "SHORT", "FLAT"}
 RE_ASSET = re.compile(r"^[A-Z0-9]{3,12}$")
 RE_INTENT_ID = re.compile(r"^INTENT-[A-Za-z0-9_-]{8,}$")
@@ -217,7 +219,15 @@ def main() -> int:
         "outcome_ref": f"audits/sentinel/outcomes/{judgment_id}.json",
         "prev_hash": prev_hash
     }
-    event_core["hash"] = _sha256_hex(_canonical_json({k: v for k, v in event_core.items() if k != "hash"}))
+    event_core["hash"] = _sha256_hex(
+        _canonical_json({k: v for k, v in event_core.items() if k != "hash"})
+    )
+
+    # Optional signature layer (post-hash, not part of chain hash)
+    cfg = load_sig_config_from_env()
+    auth = sign_hash_hex(cfg, event_core["hash"])
+    if auth:
+        event_core["auth"] = auth
 
     _append_jsonl(audit_path, event_core)
 
