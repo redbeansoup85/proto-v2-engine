@@ -82,10 +82,13 @@ def build_snapshot_from_template(
     if isinstance(deriv, dict) and isinstance(raw_deriv, dict):
         raw_oi = raw_deriv.get("oi")
         raw_funding = raw_deriv.get("funding")
+        raw_lsr = raw_deriv.get("lsr")
 
         if isinstance(raw_oi, (int, float)) and math.isfinite(float(raw_oi)):
             deriv["oi"] = float(raw_oi)
         if isinstance(raw_funding, (int, float)) and math.isfinite(float(raw_funding)):
             deriv["funding"] = float(raw_funding)
+        if isinstance(raw_lsr, (int, float)) and math.isfinite(float(raw_lsr)):
+            deriv["lsr"] = float(raw_lsr)
 
     return snapshot
