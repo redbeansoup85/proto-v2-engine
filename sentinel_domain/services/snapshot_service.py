@@ -10,7 +10,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from sentinel_domain.adapters.market.base import parse_tfs
 from sentinel_domain.adapters.market.bybit_rest import fetch_raw_market_bundle
 from sentinel_domain.features.indicators import compute_tf_indicators
-from sentinel_domain.features.snapshot_builder import build_snapshot_from_template, make_template_snapshot, select_base_tf
+from sentinel_domain.features.snapshot_builder import (
+    build_snapshot_from_template,
+    make_template_snapshot,
+    select_base_tf,
+)
 
 DEFAULT_SNAPSHOT_DIR = "audits/sentinel/snapshots"
 DEFAULT_VENUE = "bybit"
@@ -102,6 +106,8 @@ def build_snapshot_payload(
         market_type=market_type,
         http_get_json=http_get_json,
     )
+
+    # Ensure raw proof structure exists and is list-backed for errors
     proof_obj = raw_bundle.get("proof")
     if not isinstance(proof_obj, dict):
         proof_obj = {}
@@ -111,41 +117,43 @@ def build_snapshot_payload(
         proof_errors = []
         proof_obj["errors"] = proof_errors
 
+    # Normalize stale_limit_ms ONCE here (single source of truth)
     if stale_limit_ms is None or stale_limit_ms <= 0:
         stale_limit_ms = DEFAULT_STALE_LIMIT_MS
         proof_errors.append({"type": "stale_limit_default_applied", "value_ms": stale_limit_ms})
 
+    # Fail-close stale candles: prune candle arrays if last candle timestamp is stale or invalid.
     stale_missing: List[str] = []
-    if isinstance(stale_limit_ms, int) and stale_limit_ms > 0:
-        snapshot_ts_ms = _parse_iso_utc_to_ms(ts_utc)
-        candles_obj = raw_bundle.get("candles")
-        if snapshot_ts_ms is not None and isinstance(candles_obj, dict):
-            for tf in tfs:
-                rows = candles_obj.get(tf)
-                if not isinstance(rows, list) or not rows:
-                    continue
-                last = rows[-1]
-                last_t = last.get("t") if isinstance(last, dict) else None
-                last_ms: Optional[int] = None
-                try:
-                    last_ms = int(last_t)  # type: ignore[arg-type]
-                except Exception:
-                    if isinstance(last_t, str):
-                        last_ms = _parse_iso_utc_to_ms(last_t)
+    snapshot_ts_ms = _parse_iso_utc_to_ms(ts_utc)
+    candles_obj = raw_bundle.get("candles")
+    if snapshot_ts_ms is not None and isinstance(candles_obj, dict):
+        for tf in tfs:
+            rows = candles_obj.get(tf)
+            if not isinstance(rows, list) or not rows:
+                continue
+            last = rows[-1]
+            last_t = last.get("t") if isinstance(last, dict) else None
 
-                if last_ms is None:
-                    candles_obj[tf] = []
-                    stale_key = "candles.%s.stale" % tf
-                    if stale_key not in stale_missing:
-                        stale_missing.append(stale_key)
-                    proof_errors.append({"tf": tf, "type": "candle_ts_parse_error", "message": "invalid candle t"})
-                    continue
+            last_ms: Optional[int] = None
+            try:
+                last_ms = int(last_t)  # type: ignore[arg-type]
+            except Exception:
+                if isinstance(last_t, str):
+                    last_ms = _parse_iso_utc_to_ms(last_t)
 
-                if abs(snapshot_ts_ms - last_ms) > stale_limit_ms:
-                    candles_obj[tf] = []
-                    stale_key = "candles.%s.stale" % tf
-                    if stale_key not in stale_missing:
-                        stale_missing.append(stale_key)
+            if last_ms is None:
+                candles_obj[tf] = []
+                stale_key = "candles.%s.stale" % tf
+                if stale_key not in stale_missing:
+                    stale_missing.append(stale_key)
+                proof_errors.append({"tf": tf, "type": "candle_ts_parse_error", "message": "invalid candle t"})
+                continue
+
+            if abs(snapshot_ts_ms - last_ms) > stale_limit_ms:
+                candles_obj[tf] = []
+                stale_key = "candles.%s.stale" % tf
+                if stale_key not in stale_missing:
+                    stale_missing.append(stale_key)
 
     candles = raw_bundle.get("candles")
     candles_map: Dict[str, List[Dict[str, Any]]] = candles if isinstance(candles, dict) else {}
@@ -153,7 +161,9 @@ def build_snapshot_payload(
     base_tf = select_base_tf(candles_map)
     base_metrics = per_tf.get(base_tf, {}) if isinstance(base_tf, str) else {}
     computed = {"per_tf": per_tf, "base_tf": base_tf, "base": base_metrics}
+
     evidence = _build_evidence(raw_bundle, computed, tfs, stale_limit_ms, ts_utc)
+
     missing = evidence.get("missing")
     if isinstance(missing, list):
         for item in stale_missing:
@@ -181,15 +191,15 @@ def capture_market_snapshot(
     stale_limit_ms: Optional[int] = None,
     http_get_json: Optional[Callable[[str, float], Dict[str, Any]]] = None,
 ) -> str:
-    out_dir = Path(
-        str(snap_dir or os.getenv("SENTINEL_SNAPSHOT_DIR") or DEFAULT_SNAPSHOT_DIR)
-    )
+    out_dir = Path(str(snap_dir or os.getenv("SENTINEL_SNAPSHOT_DIR") or DEFAULT_SNAPSHOT_DIR))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     final_snap_id = snap_id or ("SNAP-%s" % datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"))
     venue_v = str(venue or os.getenv("SENTINEL_VENUE") or DEFAULT_VENUE)
     market_v = str(market_type or os.getenv("SENTINEL_MARKET") or DEFAULT_MARKET)
     tfs_v = tfs or parse_tfs(os.getenv("SENTINEL_TFS", DEFAULT_TFS))
+
+    # capture_market_snapshot: keep env parsing only; normalize is done in build_snapshot_payload
     stale_v: Optional[int] = stale_limit_ms
     if stale_v is None:
         stale_env = os.getenv("SENTINEL_STALE_MS")
