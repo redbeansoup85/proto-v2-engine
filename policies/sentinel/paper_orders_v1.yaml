@@ -1,0 +1,37 @@
+schema: sentinel_paper_orders_policy.v1
+policy_id: PAPER_ORDERS_V1
+version: "1.0"
+
+defaults:
+  venue: "bybit"
+  product: "perp"
+  leverage: 2
+  sizing:
+    # equity_pct is used for paper only (wallet not read yet)
+    equity_pct: 0.02
+  sl:
+    # simple initial stop model (placeholder)
+    atr_mult: 1.5
+  tp:
+    r_multiple: 2.0
+
+rules:
+  - id: PAPER_ONLY
+    priority: 10
+    when:
+      execution_mode_in: ["paper"]
+      triggered_is: true
+      direction_in: ["long", "short"]
+      risk_level_in: ["low", "medium"]
+      confidence_gte: 0.55
+      score_gte: 60
+      oi_delta_pct_gt: -0.20
+    action:
+      emit: "PAPER_ORDER"
+
+  - id: DRYRUN_NO_ORDER
+    priority: 90
+    when:
+      execution_mode_in: ["dry_run"]
+    action:
+      emit: "NO_ORDER"

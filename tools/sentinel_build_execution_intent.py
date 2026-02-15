@@ -118,6 +118,7 @@ def _select_signal(item: dict) -> tuple[int, str | None, str, float, str | None]
 
 def _evaluate_trigger(
     *,
+    execution_mode: str,
     score: int,
     direction: str | None,
     risk_level: str,
@@ -132,7 +133,18 @@ def _evaluate_trigger(
     if oi_delta_pct is not None and oi_delta_pct <= -0.20:
         return (False, "NO_TRADE_OI_DROP_VETO")
 
-    if score >= 75 and direction in ("long", "short") and risk_level in ("low", "medium") and confidence >= 0.70:
+    # Mode-specific thresholds
+    # - paper: lower threshold for rehearsal / pipeline verification
+    # - live: strict
+    # - dry_run: keep strict (no execution)
+    if execution_mode == "paper":
+        min_score = 60
+        min_conf = 0.55
+    else:
+        min_score = 75
+        min_conf = 0.70
+
+    if score >= min_score and direction in ("long", "short") and risk_level in ("low", "medium") and confidence >= min_conf:
         return (True, "EXECUTE_CONDITIONS_MET")
 
     return (False, "NO_ACTION_CONDITIONS_NOT_MET")
@@ -192,7 +204,7 @@ def main() -> int:
             oi_delta_pct_v = float(oi_delta_pct) if oi_delta_pct is not None else _compute_oi_delta_pct(symbol, ts)
 
             score, direction, risk, conf, snap = _select_signal(item)
-            triggered, reason = _eval_trigger(policy, score=score, direction=direction, risk_level=risk, confidence=conf, oi_delta_pct=oi_delta_pct_v)
+            triggered, reason = _evaluate_trigger(execution_mode=execution_mode, score=score, direction=direction, risk_level=risk, confidence=conf, oi_delta_pct=oi_delta_pct_v)
             intents.append(
                 {
                     "symbol": symbol,
