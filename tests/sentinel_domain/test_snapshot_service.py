@@ -130,6 +130,18 @@ def _http_fixture_15m_empty(url: str, timeout_sec: float) -> Dict[str, Any]:
     return _http_fixture_router(url, timeout_sec)
 
 
+def _http_fixture_15m_stale(url: str, timeout_sec: float) -> Dict[str, Any]:
+    if "/v5/market/kline" in url:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        interval = (q.get("interval") or ["15"])[0]
+        interval_min = int(interval)
+        if interval == "15":
+            return _mk_bybit_kline_payload(interval_minutes=interval_min, count=260, start_ms=0)
+        now_ms = int(time.time() * 1000) - (300 * 60 * 1000)
+        return _mk_bybit_kline_payload(interval_minutes=interval_min, count=260, start_ms=now_ms)
+    return _http_fixture_router(url, timeout_sec)
+
+
 def test_adapter_parses_fixture_candles_ascending_and_numeric() -> None:
     raw = fetch_raw_market_bundle(
         asset="BTCUSDT",
@@ -383,3 +395,32 @@ def test_fail_closed_price_keeps_na_on_empty_15m(tmp_path: Path) -> None:
     )
     written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
     assert written["tf_state"]["15m"]["price"] == "n/a"
+
+
+def test_stale_guard_15m_keeps_na_and_marks_missing(tmp_path: Path) -> None:
+    ts_utc = "2026-02-15T12:00:00Z"
+    ref = capture_market_snapshot(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        snap_dir=tmp_path,
+        snap_id="SNAP-STALE-15M",
+        venue="bybit",
+        market_type="perp",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=60 * 60 * 1000,
+        http_get_json=_http_fixture_15m_stale,
+    )
+    written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
+    assert written["tf_state"]["15m"]["vwap"] == "n/a"
+    assert written["tf_state"]["15m"]["price"] == "n/a"
+
+    _, _, evidence = build_snapshot_payload(
+        asset="BTCUSDT",
+        ts_utc=ts_utc,
+        venue="bybit",
+        market_type="perp",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=60 * 60 * 1000,
+        http_get_json=_http_fixture_15m_stale,
+    )
+    assert "candles.15m.stale" in evidence["missing"]
