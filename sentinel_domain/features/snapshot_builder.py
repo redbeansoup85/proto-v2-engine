@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from typing import Any, Dict, List, Optional
 
 # Exact template structure copied from tools/sentinel/consume_trade_intent.py
@@ -76,5 +77,15 @@ def build_snapshot_from_template(
         if isinstance(rsi14, float):
             state["rsi"] = rsi14
 
-    return snapshot
+    deriv = snapshot.get("deriv")
+    raw_deriv = raw_bundle.get("deriv")
+    if isinstance(deriv, dict) and isinstance(raw_deriv, dict):
+        raw_oi = raw_deriv.get("oi")
+        raw_funding = raw_deriv.get("funding")
 
+        if isinstance(raw_oi, (int, float)) and math.isfinite(float(raw_oi)):
+            deriv["oi"] = float(raw_oi)
+        if isinstance(raw_funding, (int, float)) and math.isfinite(float(raw_funding)):
+            deriv["funding"] = float(raw_funding)
+
+    return snapshot
