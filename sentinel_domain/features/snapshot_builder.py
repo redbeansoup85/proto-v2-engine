@@ -4,6 +4,8 @@ import copy
 import math
 from typing import Any, Dict, List, Optional
 
+from sentinel_domain.features.indicators import compute_vwap_from_candles
+
 # Exact template structure copied from tools/sentinel/consume_trade_intent.py
 SNAPSHOT_TEMPLATE = {
     "schema": "market_snapshot.v1",
@@ -23,6 +25,7 @@ SNAPSHOT_TEMPLATE = {
         "cvd_proxy": {"futures": "n/a", "spot": "n/a"},
     },
 }
+VWAP_LOOKBACK = 50
 
 
 def make_template_snapshot(asset: str, ts_utc: str) -> Dict[str, Any]:
@@ -76,6 +79,12 @@ def build_snapshot_from_template(
             state["ema200"] = ema200
         if isinstance(rsi14, float):
             state["rsi"] = rsi14
+
+        raw_candles = ((raw_bundle.get("candles") or {}) if isinstance(raw_bundle, dict) else {}).get(tf)
+        if isinstance(raw_candles, list):
+            vwap = compute_vwap_from_candles(raw_candles, VWAP_LOOKBACK)
+            if isinstance(vwap, float) and math.isfinite(vwap):
+                state["vwap"] = float(vwap)
 
     deriv = snapshot.get("deriv")
     raw_deriv = raw_bundle.get("deriv")

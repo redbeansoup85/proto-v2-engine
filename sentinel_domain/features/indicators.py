@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional
 
 
@@ -40,6 +41,44 @@ def rsi(values: List[float], period: int = 14) -> Optional[float]:
     return float(100.0 - (100.0 / (1.0 + rs)))
 
 
+def compute_vwap_from_candles(candles: List[Dict[str, object]], lookback: int) -> Optional[float]:
+    # VWAP is candle-based approximation using typical price; not trade-level VWAP.
+    # Uses typical=(h+l+c)/3 weighted by volume over trailing lookback candles.
+    if lookback <= 0:
+        return None
+
+    tail = candles[-lookback:]
+    if len(tail) < lookback:
+        return None
+
+    valid_count = 0
+    numerator = 0.0
+    denominator = 0.0
+    for row in tail:
+        if not isinstance(row, dict):
+            continue
+        try:
+            h = float(row.get("h"))  # type: ignore[arg-type]
+            l = float(row.get("l"))  # type: ignore[arg-type]
+            c = float(row.get("c"))  # type: ignore[arg-type]
+            v = float(row.get("v"))  # type: ignore[arg-type]
+        except Exception:
+            continue
+        if not (math.isfinite(h) and math.isfinite(l) and math.isfinite(c) and math.isfinite(v)):
+            continue
+        typical = (h + l + c) / 3.0
+        numerator += typical * v
+        denominator += v
+        valid_count += 1
+
+    if valid_count < lookback or denominator <= 0.0:
+        return None
+    vwap = numerator / denominator
+    if not math.isfinite(vwap):
+        return None
+    return float(vwap)
+
+
 def compute_tf_indicators(candles_by_tf: Dict[str, List[Dict[str, float]]]) -> Dict[str, Dict[str, Optional[float]]]:
     out: Dict[str, Dict[str, Optional[float]]] = {}
     for tf, rows in candles_by_tf.items():
@@ -51,4 +90,3 @@ def compute_tf_indicators(candles_by_tf: Dict[str, List[Dict[str, float]]]) -> D
             "rsi14": rsi(closes, 14),
         }
     return out
-

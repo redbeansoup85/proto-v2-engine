@@ -95,6 +95,21 @@ def _http_fixture_router(url: str, timeout_sec: float) -> Dict[str, Any]:
     raise AssertionError("unexpected_url:%s" % url)
 
 
+def _http_fixture_zero_volume(url: str, timeout_sec: float) -> Dict[str, Any]:
+    if "/v5/market/kline" in url:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        interval = (q.get("interval") or ["15"])[0]
+        now_ms = int(time.time() * 1000) - (300 * 60 * 1000)
+        interval_min = int(interval)
+        payload = _mk_bybit_kline_payload(interval_minutes=interval_min, count=260, start_ms=now_ms)
+        rows = (((payload.get("result") or {}).get("list")) or [])
+        for row in rows:
+            if isinstance(row, list) and len(row) > 5:
+                row[5] = "0"
+        return payload
+    return _http_fixture_router(url, timeout_sec)
+
+
 def test_adapter_parses_fixture_candles_ascending_and_numeric() -> None:
     raw = fetch_raw_market_bundle(
         asset="BTCUSDT",
@@ -210,6 +225,7 @@ def test_snapshot_service_atomic_write_and_template_shape_lock(tmp_path: Path) -
     assert isinstance(written["tf_state"]["15m"]["ema50"], float)
     assert isinstance(written["tf_state"]["15m"]["ema200"], float)
     assert isinstance(written["tf_state"]["15m"]["rsi"], float)
+    assert isinstance(written["tf_state"]["15m"]["vwap"], float)
     assert isinstance(written["deriv"]["oi"], float)
     assert isinstance(written["deriv"]["funding"], float)
     assert isinstance(written["deriv"]["lsr"], float)
@@ -297,3 +313,19 @@ def test_deriv_guard_non_perp_keeps_na_and_sets_error() -> None:
         isinstance(err, dict) and err.get("type") == "unsupported_deriv_market_type"
         for err in evidence.get("proof_errors", [])
     )
+
+
+def test_fail_closed_vwap_keeps_na_on_zero_volume(tmp_path: Path) -> None:
+    ref = capture_market_snapshot(
+        asset="BTCUSDT",
+        ts_utc="2026-02-15T12:00:00Z",
+        snap_dir=tmp_path,
+        snap_id="SNAP-VWAP-ERR",
+        venue="bybit",
+        market_type="perp",
+        tfs=["1m", "5m", "15m", "1h", "4h"],
+        stale_limit_ms=10_000_000_000,
+        http_get_json=_http_fixture_zero_volume,
+    )
+    written = json.loads((tmp_path / Path(ref).name).read_text(encoding="utf-8"))
+    assert written["tf_state"]["15m"]["vwap"] == "n/a"
