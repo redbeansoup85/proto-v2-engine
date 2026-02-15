@@ -82,6 +82,16 @@ def build_snapshot_from_template(
             state["rsi"] = rsi14
 
         raw_candles = ((raw_bundle.get("candles") or {}) if isinstance(raw_bundle, dict) else {}).get(tf)
+        if isinstance(raw_candles, list) and len(raw_candles) > 0 and "price" in state:
+            last = raw_candles[-1]
+            close_val = last.get("c", None) if isinstance(last, dict) else None
+            try:
+                close_f = float(close_val)
+            except Exception:
+                close_f = None
+            if isinstance(close_f, float) and math.isfinite(close_f):
+                state["price"] = close_f
+
         if isinstance(raw_candles, list):
             vwap = compute_vwap_from_candles(raw_candles, VWAP_LOOKBACK)
             if isinstance(vwap, float) and math.isfinite(vwap):
