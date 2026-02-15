@@ -5,64 +5,85 @@ import json
 import hashlib
 from pathlib import Path
 
+
 def _sha256_hex(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
+
 
 def _canonical_bytes(obj) -> bytes:
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--audit-jsonl", required=True)
+    ap.add_argument(
+        "--event-kind",
+        default=None,
+        help="If set, fail-closed unless every line has this event_kind. If omitted, accept any event_kind.",
+    )
     args = ap.parse_args()
 
     p = Path(args.audit_jsonl)
     if not p.is_file():
         raise ValueError(f"audit file not found: {p}")
 
-    prev = None
+    prev_hash_expected = None
+    last_hash = None
     n = 0
 
-    with p.open("rb") as f:
-        for raw in f:
-            raw = raw.strip()
-            if not raw:
+    with p.open("r", encoding="utf-8") as f:
+        for ln in f:
+            ln = ln.strip()
+            if not ln:
                 continue
             n += 1
-            obj = json.loads(raw.decode("utf-8"))
+            o = json.loads(ln)
 
-            if obj.get("schema") != "observer_event.v1":
+            if o.get("schema") != "observer_event.v1":
                 raise ValueError(f"line {n}: schema mismatch")
-            if obj.get("event_kind") != "execution_intent":
+
+            ek = o.get("event_kind")
+            if not isinstance(ek, str) or not ek:
+                raise ValueError(f"line {n}: event_kind missing/invalid")
+
+            if args.event_kind is not None and ek != args.event_kind:
                 raise ValueError(f"line {n}: event_kind mismatch")
 
-            chain = obj.get("chain", {})
+            chain = o.get("chain")
             if not isinstance(chain, dict):
-                raise ValueError(f"line {n}: chain missing")
+                raise ValueError(f"line {n}: chain missing/invalid")
 
-            ph = chain.get("prev_hash")
+            prev = chain.get("prev_hash")
             h = chain.get("hash")
-            if not isinstance(h, str) or not h:
-                raise ValueError(f"line {n}: chain.hash missing")
 
-            if n == 1:
-                if ph is not None:
-                    raise ValueError(f"line {n}: prev_hash must be None for first record")
+            if h is None or not isinstance(h, str) or not h:
+                raise ValueError(f"line {n}: chain.hash missing/invalid")
+
+            # prev_hash must match previous line hash (or None on first)
+            if prev_hash_expected is None:
+                if prev is not None:
+                    raise ValueError(f"line {n}: prev_hash must be null on first line")
             else:
-                if ph != prev:
-                    raise ValueError(f"line {n}: prev_hash mismatch expected={prev} got={ph}")
+                if prev != prev_hash_expected:
+                    raise ValueError(f"line {n}: prev_hash mismatch (expected {prev_hash_expected} got {prev})")
 
-            core = dict(obj)
-            core["chain"] = dict(chain)
-            core["chain"]["hash"] = None
-            recomputed = _sha256_hex(_canonical_bytes(core))
-            if recomputed != h:
-                raise ValueError(f"line {n}: hash mismatch expected={recomputed} got={h}")
+            # verify hash integrity: recompute with chain.hash=None
+            o2 = json.loads(ln)
+            o2["chain"]["hash"] = None
+            h2 = _sha256_hex(_canonical_bytes(o2))
+            if h2 != h:
+                raise ValueError(f"line {n}: hash mismatch (computed {h2} stored {h})")
 
-            prev = h
+            prev_hash_expected = h
+            last_hash = h
 
-    print(f"OK: chain verified lines={n} tail_hash={prev}")
+    if n == 0:
+        raise ValueError("audit file has no records")
+
+    print(f"OK: chain verified lines={n} tail_hash={last_hash}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
