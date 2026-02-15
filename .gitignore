@@ -47,3 +47,6 @@ policies/sentinel/paper_orders_debug_v1.yaml
 
 # local signing keys
 keys/
+
+# local secrets/keys
+keys/
