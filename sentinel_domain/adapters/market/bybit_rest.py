@@ -201,39 +201,47 @@ def fetch_raw_market_bundle(
             errors.append({"tf": tf, "type": "http_error", "message": str(exc)})
 
     deriv: Dict[str, Optional[float]] = {"oi": None, "funding": None, "lsr": None}
+    if market_type != "perp":
+        errors.append(
+            {
+                "tf": "deriv",
+                "type": "unsupported_deriv_market_type",
+                "message": "oi/funding/lsr require perp(linear)",
+            }
+        )
+    else:
+        oi_url = _build_open_interest_url(asset=asset, market_type=market_type)
+        endpoints.append(oi_url)
+        try:
+            oi_payload = get_json(oi_url, timeout_sec)
+            oi = _parse_open_interest(oi_payload)
+            if oi is None:
+                errors.append({"tf": "deriv", "type": "oi_parse_error", "message": "missing_or_non_numeric_open_interest"})
+            deriv["oi"] = oi
+        except Exception as exc:
+            errors.append({"tf": "deriv", "type": "oi_http_error", "message": str(exc)})
 
-    oi_url = _build_open_interest_url(asset=asset, market_type=market_type)
-    endpoints.append(oi_url)
-    try:
-        oi_payload = get_json(oi_url, timeout_sec)
-        oi = _parse_open_interest(oi_payload)
-        if oi is None:
-            errors.append({"tf": "deriv", "type": "oi_parse_error", "message": "missing_or_non_numeric_open_interest"})
-        deriv["oi"] = oi
-    except Exception as exc:
-        errors.append({"tf": "deriv", "type": "oi_http_error", "message": str(exc)})
+        funding_url = _build_funding_history_url(asset=asset, market_type=market_type)
+        endpoints.append(funding_url)
+        try:
+            funding_payload = get_json(funding_url, timeout_sec)
+            funding = _parse_funding_rate(funding_payload)
+            if funding is None:
+                errors.append({"tf": "deriv", "type": "funding_parse_error", "message": "missing_or_non_numeric_funding_rate"})
+            deriv["funding"] = funding
+        except Exception as exc:
+            errors.append({"tf": "deriv", "type": "funding_http_error", "message": str(exc)})
 
-    funding_url = _build_funding_history_url(asset=asset, market_type=market_type)
-    endpoints.append(funding_url)
-    try:
-        funding_payload = get_json(funding_url, timeout_sec)
-        funding = _parse_funding_rate(funding_payload)
-        if funding is None:
-            errors.append({"tf": "deriv", "type": "funding_parse_error", "message": "missing_or_non_numeric_funding_rate"})
-        deriv["funding"] = funding
-    except Exception as exc:
-        errors.append({"tf": "deriv", "type": "funding_http_error", "message": str(exc)})
-
-    lsr_url = _build_lsr_url(asset=asset, market_type=market_type)
-    endpoints.append(lsr_url)
-    try:
-        lsr_payload = get_json(lsr_url, timeout_sec)
-        lsr = _parse_lsr(lsr_payload)
-        if lsr is None:
-            errors.append({"tf": "deriv", "type": "lsr_parse_error", "message": "missing_or_non_numeric_lsr"})
-        deriv["lsr"] = lsr
-    except Exception as exc:
-        errors.append({"tf": "deriv", "type": "lsr_http_error", "message": str(exc)})
+        lsr_url = _build_lsr_url(asset=asset, market_type=market_type)
+        endpoints.append(lsr_url)
+        try:
+            lsr_payload = get_json(lsr_url, timeout_sec)
+            lsr = _parse_lsr(lsr_payload)
+            if lsr is None:
+                errors.append({"tf": "deriv", "type": "lsr_parse_error", "message": "missing_or_non_numeric_lsr"})
+            deriv["lsr"] = lsr
+        except Exception as exc:
+            errors.append({"tf": "deriv", "type": "lsr_http_error", "message": str(exc)})
 
     latency_ms = int((time.time() - start) * 1000)
     return {
