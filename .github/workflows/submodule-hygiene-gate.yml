@@ -6,9 +6,12 @@ on:
   pull_request:
 jobs:
   submodule-hygiene-gate:
+    name: submodule-hygiene-gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout
+        with:
+          submodules: recursive@v4
         with:
           submodules: recursive
       - uses: actions/setup-python@v5
