@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/**"
-      - "vendor/gatekit/ci/gate-template/**"
+      - "gatekit/templates/**"
       - "tools/gates/gate_template_drift_gate.py"
       - "docs/gatekit/**"
 
@@ -15,9 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout
-        with:
-          submodules: recursive@v4
+        uses: actions/checkout@v4
 
       - name: setup python
         uses: actions/setup-python@v5
@@ -29,5 +27,5 @@ jobs:
           python tools/gates/gate_template_drift_gate.py \
             --require-template-tag \
             --workflows-root .github/workflows \
-            --templates-root vendor/gatekit/ci/gate-template \
+            --templates-root gatekit/templates \
             --max-tag-lines 5
