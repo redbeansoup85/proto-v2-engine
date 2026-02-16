@@ -1,27 +1,35 @@
 # gatekit_template: lock-f4-submodule-hygiene-v1
 name: Submodule Hygiene Gate
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
+
 jobs:
   submodule-hygiene-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          submodules: false
           persist-credentials: false
+          fetch-depth: 1
 
-      - name: Clone submodules without injected auth header
+      - name: clone submodules (auth via SUBMODULES_PAT)
+        env:
+          SUBMODULES_PAT: ${{ secrets.SUBMODULES_PAT }}
         run: |
-          git config --global --unset-all http.https://github.com/.extraheader || true
-          git config --local  --unset-all http.https://github.com/.extraheader || true
+          test -n "$SUBMODULES_PAT" || (echo "Missing SUBMODULES_PAT secret" && exit 1)
+          git config --global url."https://${SUBMODULES_PAT}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
-          git -c http.extraHeader= submodule update --init --recursive --depth=1
+          git submodule update --init --recursive --depth=1
 
-      - uses: actions/setup-python@v5
+      - name: setup python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: python tools/gates/submodule_hygiene_gate.py --root .
+      - name: run submodule hygiene gate (fail-closed)
+        run: python tools/gates/submodule_hygiene_gate.py --root .

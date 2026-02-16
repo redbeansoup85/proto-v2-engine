@@ -2,33 +2,34 @@
 name: Submodule Hygiene Gate
 
 on:
-  pull_request:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+  pull_request:
 
 jobs:
   submodule-hygiene-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main repo (no submodules)
+      - name: checkout
         uses: actions/checkout@v4
         with:
           submodules: false
           persist-credentials: false
+          fetch-depth: 1
 
-      - name: Clone submodules using PAT
+      - name: clone submodules (auth via SUBMODULES_PAT)
         env:
           SUBMODULES_PAT: ${{ secrets.SUBMODULES_PAT }}
         run: |
-          if [ -z "$SUBMODULES_PAT" ]; then
-            echo "❌ SUBMODULES_PAT secret is missing"
-            exit 1
-          fi
-
+          test -n "$SUBMODULES_PAT" || (echo "Missing SUBMODULES_PAT secret" && exit 1)
           git config --global url."https://${SUBMODULES_PAT}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
           git submodule update --init --recursive --depth=1
 
-      - name: Submodule hygiene check
-        run: |
-          echo "Submodules cloned successfully."
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: run submodule hygiene gate (fail-closed)
+        run: python tools/gates/submodule_hygiene_gate.py --root .
