@@ -1,5 +1,5 @@
 version: 1
 entries:
   - path: vendor/gatekit
-    url: https://github.com/redbeansoup85/meta-os-gatekit.git
+    url: https://github.com/redbeansoup85/meta-os-gatekit-public.git
     pinned_commit: "ebe280776f7988a4d648c97f9f19d642ffc3b452"
