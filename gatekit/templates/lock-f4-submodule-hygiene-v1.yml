@@ -8,6 +8,7 @@ on:
 
 jobs:
   submodule-hygiene-gate:
+    name: submodule-hygiene-gate
     runs-on: ubuntu-latest
     steps:
       - name: checkout
