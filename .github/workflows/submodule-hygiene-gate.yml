@@ -13,7 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: fetch gatekit (manual, unauth)
+        run: |
+          rm -rf vendor/gatekit
+          git clone --depth 1 https://github.com/redbeansoup85/meta-os-gatekit-public vendor/gatekit
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
