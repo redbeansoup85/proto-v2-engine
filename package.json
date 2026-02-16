@@ -1,0 +1,8 @@
+{
+  "name": "proto-v2-engine-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "ui:build": "npm --prefix apps/ui run build"
+  }
+}

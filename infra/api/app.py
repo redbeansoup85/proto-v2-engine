@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from infra.api.endpoints.approvals import router as approvals_router
 from infra.api.endpoints.execution import router as execution_router  # LOCK2_ALLOW_EXEC
+from infra.api.endpoints.ui_status import router as ui_status_router
 from infra.api.lock4_runtime import preflight_lock4_runtime
 
 def resolve_lock4_sig_mode(env: dict) -> str:
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     # API v1
     app.include_router(execution_router, prefix="/api/v1")
     app.include_router(approvals_router, prefix="/api/v1")
+    app.include_router(ui_status_router)
 
     return app
 
