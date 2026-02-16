@@ -1,6 +1,7 @@
 # gatekit_template: adapter-registry-gate
 name: __GATE_NAME__
 
+
 on:
   push:
   pull_request:
