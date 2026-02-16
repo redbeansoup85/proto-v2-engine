@@ -2,4 +2,4 @@ version: 1
 entries:
   - path: vendor/gatekit
     url: https://github.com/redbeansoup85/meta-os-gatekit-public.git
-    pinned_commit: "ebe280776f7988a4d648c97f9f19d642ffc3b452"
+    pinned_commit: "4eb6d6a7dd13bd083623a98a9dbeed3d5abdef27"
