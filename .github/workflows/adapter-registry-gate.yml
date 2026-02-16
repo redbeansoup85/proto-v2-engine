@@ -1,5 +1,5 @@
 # gatekit_template: adapter-registry-gate
-name: __GATE_NAME__
+name: adapter-registry-gate
 
 on:
   push:
