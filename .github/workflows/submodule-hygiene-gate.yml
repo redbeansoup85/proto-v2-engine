@@ -6,6 +6,7 @@ on:
   pull_request:
 jobs:
   submodule-hygiene-gate:
+    name: submodule-hygiene-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout
