@@ -9,7 +9,6 @@ import yaml
 FORBIDDEN_OUTPUT_KEYS = {
     "execute",
     "order",
-    ("place" + "_order"),
     "trade",
     "qty",
     "size",
