@@ -9,11 +9,9 @@ jobs:
     name: submodule-hygiene-gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout
-        with:
-          submodules: recursive@v4
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v4
+          with:
+            submodules: recursive
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout
+        uses: actions/checkout@v4
         with:
-          submodules: recursive@v4
+          submodules: recursive
 
       - name: setup python
         uses: actions/setup-python@v5
