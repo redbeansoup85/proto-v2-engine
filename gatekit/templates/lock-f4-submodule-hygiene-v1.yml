@@ -10,9 +10,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          fetch-depth: 1
           persist-credentials: false
+
+      - name: Clone submodules without injected auth header
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader || true
+          git config --local  --unset-all http.https://github.com/.extraheader || true
+          git submodule sync --recursive
+          git -c http.extraHeader= submodule update --init --recursive --depth=1
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - run: python tools/gates/submodule_hygiene_gate.py --root .
