@@ -1,0 +1,24 @@
+version: 1
+dev_language:
+  primary:
+    name: python
+    runtime: "3.11"
+  secondary_allowed: []
+
+# 변경 분류 토큰 규칙 (최소 요구 토큰)
+# - A-PATCH < A-MINOR < A-MAJOR
+change_token_policy:
+  # governance 문서 변경 시 최소 A-MINOR 필요
+  - path_regex: '^docs/governance/'
+    min_token: 'A-MINOR'
+    reason: 'governance docs changed'
+
+  # 워크플로우/CI 정책 변경도 최소 A-MINOR (운영/거버넌스 성격)
+  - path_regex: '^\\.github/workflows/'
+    min_token: 'A-MINOR'
+    reason: 'workflow/ci changed'
+
+  # gate/보안/스캔 정책 변경도 최소 A-MINOR (fail-closed 규칙)
+  - path_regex: '^(tools/gates/|policies/)'
+    min_token: 'A-MINOR'
+    reason: 'gates/policies changed'

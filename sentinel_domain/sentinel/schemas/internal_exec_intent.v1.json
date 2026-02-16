@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "internal_exec_intent.v1.json",
+  "title": "internal_exec_intent.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "exec_intent_id",
+    "source_intent_id",
+    "track_id",
+    "mode",
+    "idempotency_key",
+    "producer",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "internal_exec_intent.v1"
+    },
+    "exec_intent_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "source_intent_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "track_id": {
+      "type": "string",
+      "const": "INTERNAL"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["paper", "real"]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 8
+    },
+    "approval_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component"],
+      "properties": {
+        "component": {
+          "type": "string",
+          "const": "exec_gate"
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
