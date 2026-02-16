@@ -50,3 +50,5 @@ keys/
 
 # local secrets/keys
 keys/
+
+/package.json
