@@ -6,6 +6,7 @@ on:
   pull_request:
 jobs:
   static-scan-policy-gate:
+    name: static-scan-policy-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
