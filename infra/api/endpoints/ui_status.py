@@ -21,10 +21,16 @@ EXECUTOR_STATUS_CANDIDATES = [
 ]
 EXECUTOR_FAIL_STREAK_FILE = Path("var/metaos/state/executor_fail_streak.txt")
 
+SCHEMA_EXPECTED_AUDIT = "audit_event.v1"
+
 
 # ---------------------------------------------------------
 # helpers
 # ---------------------------------------------------------
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 def _safe_load_json(path: Path) -> Optional[Dict[str, Any]]:
     try:
@@ -71,7 +77,6 @@ def _last_jsonl_row(path: Path) -> Optional[Dict[str, Any]]:
             if isinstance(obj, dict):
                 return obj
         except Exception:
-            # fail-closed는 verify_chain에서, 여기선 UI status라 계속 탐색
             continue
 
     return None
@@ -87,21 +92,20 @@ def _line_count(path: Path) -> Any:
         return "n/a"
 
 
-# ---------------------------------------------------------
-# 🔥 FIXED: dual-layout last_hash support
-# ---------------------------------------------------------
-
 def _last_hash(path: Path) -> str:
+    """
+    Support both:
+    - audit_event.v1 (top-level hash/prev_hash)
+    - observer_event.v1 (chain.hash/chain.prev_hash)
+    """
     row = _last_jsonl_row(path)
     if not row:
         return "n/a"
 
-    # layout A: audit_event.v1 (top-level hash)
     h = row.get("hash")
     if isinstance(h, str) and h:
         return h
 
-    # layout B: observer_event.v1 (chain.hash)
     chain = row.get("chain")
     if isinstance(chain, dict):
         h2 = chain.get("hash")
@@ -109,6 +113,17 @@ def _last_hash(path: Path) -> str:
             return h2
 
     return "n/a"
+
+
+def _audit_status_block(path: Path, verbose: int) -> Dict[str, Any]:
+    base = {
+        "lines": _line_count(path),
+        "last_hash": _last_hash(path),
+    }
+    if verbose:
+        base["path"] = str(path)
+        base["schema_expected"] = SCHEMA_EXPECTED_AUDIT
+    return base
 
 
 # ---------------------------------------------------------
@@ -133,45 +148,33 @@ def get_latest_intent() -> Any:
 
 
 @router.get("/api/audit/chain/status")
-def get_audit_chain_status() -> Dict[str, Any]:
-    # dashboard observability: include file path + expected schema
+def get_audit_chain_status(verbose: int = 0) -> Dict[str, Any]:
+    # IMPORTANT: default response must remain stable for tests/clients.
     return {
-        "execution_intent": {
-            "path": str(AUDIT_EXECUTION_INTENT),
-            "schema_expected": "audit_event.v1",
-            "lines": _line_count(AUDIT_EXECUTION_INTENT),
-            "last_hash": _last_hash(AUDIT_EXECUTION_INTENT),
-        },
-        "paper_orders": {
-            "path": str(AUDIT_PAPER_ORDERS),
-            "schema_expected": "audit_event.v1",
-            "lines": _line_count(AUDIT_PAPER_ORDERS),
-            "last_hash": _last_hash(AUDIT_PAPER_ORDERS),
-        },
-        "paper_fills": {
-            "path": str(AUDIT_PAPER_FILLS),
-            "schema_expected": "audit_event.v1",
-            "lines": _line_count(AUDIT_PAPER_FILLS),
-            "last_hash": _last_hash(AUDIT_PAPER_FILLS),
-        },
+        "execution_intent": _audit_status_block(AUDIT_EXECUTION_INTENT, verbose),
+        "paper_orders": _audit_status_block(AUDIT_PAPER_ORDERS, verbose),
+        "paper_fills": _audit_status_block(AUDIT_PAPER_FILLS, verbose),
     }
 
 
 @router.get("/api/executor/status")
-def get_executor_status() -> Dict[str, Any]:
-    ts_checked_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+def get_executor_status(verbose: int = 0) -> Dict[str, Any]:
+    ts_checked = _utc_now_iso()
 
     for path in EXECUTOR_STATUS_CANDIDATES:
         obj = _safe_load_json(path)
         if obj is None:
             continue
-        return {
-            "source_path": str(path),
-            "ts_checked_iso": ts_checked_iso,
+
+        base = {
             "fail_streak": obj.get("fail_streak", "n/a"),
             "last_http_code": obj.get("last_http_code", "n/a"),
             "last_event_id": obj.get("last_event_id", "n/a"),
         }
+        if verbose:
+            base["source_path"] = str(path)
+            base["ts_checked_iso"] = ts_checked
+        return base
 
     if EXECUTOR_FAIL_STREAK_FILE.exists():
         try:
@@ -180,18 +183,22 @@ def get_executor_status() -> Dict[str, Any]:
         except Exception:
             fail_streak = "n/a"
 
-        return {
-            "source_path": str(EXECUTOR_FAIL_STREAK_FILE),
-            "ts_checked_iso": ts_checked_iso,
+        base = {
             "fail_streak": fail_streak,
             "last_http_code": "n/a",
             "last_event_id": "n/a",
         }
+        if verbose:
+            base["source_path"] = str(EXECUTOR_FAIL_STREAK_FILE)
+            base["ts_checked_iso"] = ts_checked
+        return base
 
-    return {
-        "source_path": "n/a",
-        "ts_checked_iso": ts_checked_iso,
+    base = {
         "fail_streak": 0,
         "last_http_code": "n/a",
         "last_event_id": "n/a",
     }
+    if verbose:
+        base["source_path"] = "n/a"
+        base["ts_checked_iso"] = ts_checked
+    return base
