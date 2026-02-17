@@ -8,6 +8,10 @@ from infra.api.endpoints.execution import router as execution_router  # LOCK2_AL
 from infra.api.endpoints.ui_status import router as ui_status_router
 from infra.api.lock4_runtime import preflight_lock4_runtime
 
+# ✅ ADD: executor endpoint router (POST /execute_market)
+from infra.api.routes.executor import router as executor_router
+
+
 def resolve_lock4_sig_mode(env: dict) -> str:
     """Resolve LOCK4 signature mode from provided env mapping ONLY.
 
@@ -26,17 +30,20 @@ def resolve_lock4_sig_mode(env: dict) -> str:
     return "warn"
 
 
-
 def create_app() -> FastAPI:
     app = FastAPI()
 
     # API v1
     app.include_router(execution_router, prefix="/api/v1")
     app.include_router(approvals_router, prefix="/api/v1")
+
+    # ✅ ADD: executor endpoint (no prefix → POST /execute_market)
+    app.include_router(executor_router)
+
+    # UI readonly endpoints (no prefix)
     app.include_router(ui_status_router)
 
     return app
-
 
 
 def run_lock4_preflight_or_die(mode: str, workspace_dir) -> int:
@@ -58,5 +65,6 @@ def run_lock4_preflight_or_die(mode: str, workspace_dir) -> int:
     if mode == "warn":
         return 0
     return rc
+
 
 app = create_app()
