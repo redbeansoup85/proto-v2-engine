@@ -18,6 +18,10 @@ AUDIT_ROOT = Path(os.getenv("AURALIS_AUDIT_PATH", str(Path.cwd() / "var/audit_ch
 AUDIT_EXEC_INTENT = Path(os.getenv("AUDIT_EXECUTION_INTENT_JSONL", str(AUDIT_ROOT / "execution_intent.jsonl")))
 
 
+def is_live_enabled() -> bool:
+    return os.getenv("LIVE_TRADING_ENABLED") == "true"
+
+
 
 def _recent_event_id_exists(audit_path: Path, event_id: str, scan_lines: int = 500) -> bool:
     if not audit_path.exists():
@@ -42,6 +46,10 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
 
     This is OBSERVER/EXECUTOR side; loop should be outbox-only by default.
     """
+    # hard fail-safe: default-disabled live trading kill switch
+    if not is_live_enabled():
+        return {"status": "blocked_by_env", "reason": "LIVE_TRADING_DISABLED"}
+
     # optional hard kill-switch (can be wired to UI later)
     if os.getenv("EXECUTOR_KILL_SWITCH", "0") == "1":
         raise HTTPException(status_code=423, detail="executor_kill_switch=1")
