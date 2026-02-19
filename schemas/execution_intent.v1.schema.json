@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution_intent.v1.schema.json",
+  "title": "execution_intent.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "ts_utc",
+    "symbol",
+    "side",
+    "order_type",
+    "qty",
+    "mode",
+    "risk",
+    "evidence"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ts_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
+    },
+    "order_type": {
+      "type": "string",
+      "enum": [
+        "MARKET"
+      ]
+    },
+    "qty": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "LIVE"
+      ]
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "max_qty",
+        "max_notional_usd"
+      ],
+      "properties": {
+        "max_qty": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_notional_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "decision_reason",
+        "plan_mode"
+      ],
+      "properties": {
+        "decision_reason": {
+          "type": "string"
+        },
+        "plan_mode": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

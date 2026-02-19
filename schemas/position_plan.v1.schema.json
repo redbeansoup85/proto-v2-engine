@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "position_plan.v1.schema.json",
+  "title": "position_plan.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "ts_utc",
+    "symbol",
+    "timeframe",
+    "direction",
+    "size",
+    "mode",
+    "risk",
+    "evidence"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ts_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timeframe": {
+      "type": "string",
+      "minLength": 1
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "NO_TRADE",
+        "LONG",
+        "SHORT"
+      ]
+    },
+    "size": {
+      "type": "number",
+      "minimum": 0
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "NO_EXEC",
+        "SIMULATE",
+        "LIVE"
+      ]
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "max_risk_pct",
+        "sizing_method"
+      ],
+      "properties": {
+        "max_risk_pct": {
+          "type": "number"
+        },
+        "sizing_method": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "decision_reason"
+      ],
+      "properties": {
+        "decision_reason": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

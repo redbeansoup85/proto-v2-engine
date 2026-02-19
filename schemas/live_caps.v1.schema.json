@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "live_caps.v1.schema.json",
+  "title": "live_caps.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_id",
+    "version",
+    "market_only",
+    "max_qty",
+    "max_notional_usd"
+  ],
+  "properties": {
+    "policy_id": {
+      "type": "string",
+      "const": "live_caps.v1"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "market_only": {
+      "type": "boolean"
+    },
+    "max_qty": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "max_notional_usd": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
+  }
+}
