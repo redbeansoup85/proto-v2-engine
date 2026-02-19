@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from tools.gates.gate_macro_regime import apply_macro_gate
-from tools.gates.gate_live_execution import validate_or_record
 from tools.policy.live_caps import load_live_caps_or_record
 
 
@@ -96,10 +95,3 @@ def write_execution_intent(
     caps_multiplier = float(macro_adj["caps_multiplier"])
     intent["risk"]["max_qty"] = float(caps["max_qty"]) * caps_multiplier
     intent["risk"]["max_notional_usd"] = float(caps["max_notional_usd"]) * caps_multiplier
-    if not validate_or_record(intent, exceptions_dir=exceptions_dir, last_price_usd=last_price_usd):
-        return False
-    p = Path(out_dir)
-    p.mkdir(parents=True, exist_ok=True)
-    out = p / "execution_intent.v1.json"
-    out.write_text(json.dumps(intent, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-    return str(out)
