@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "macro_snapshot.v1.schema.json",
+  "title": "macro_snapshot.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ts_utc",
+    "inputs",
+    "meta"
+  ],
+  "properties": {
+    "ts_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "real10y",
+        "dxy",
+        "vix"
+      ],
+      "properties": {
+        "real10y": {
+          "type": "number"
+        },
+        "dxy": {
+          "type": "number"
+        },
+        "vix": {
+          "type": "number"
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "source",
+        "stale_after_hours"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "stale_after_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

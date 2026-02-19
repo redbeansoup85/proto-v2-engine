@@ -23,6 +23,11 @@ STATE_DIR="var/metaos/state"
 FAIL_FILE="${STATE_DIR}/executor_fail_streak.txt"
 mkdir -p "$STATE_DIR"
 
+# --- audit chain config (UI readonly status expects these paths) ---
+AUDIT_DIR="var/audit_chain"
+AUDIT_EXECUTION_INTENT="${AUDIT_DIR}/execution_intent.jsonl"
+mkdir -p "$AUDIT_DIR"
+
 for ((c=1; c<=CYCLES; c++)); do
   TS_COMPACT="$(date -u +%Y%m%dT%H%M%SZ)"
   export TS_COMPACT
@@ -141,10 +146,69 @@ JSON
     --summary-file "$SUMMARY_OUT" \
     --outbox "/tmp/orch_outbox_live/SENTINEL_EXEC" \
     --policy-file "policies/sentinel/exec_trigger_v1.yaml" \
-    --policy-sha256 "c3c14d953ffae4cd1966d26d2c05d0d5c418fd7591981d0096f4e7554697018c" \
+    --policy-sha256 "df9016024b1ba5caea749301eb8336c8c2425e8e83ed20bcd9d31613fdf6c008" \
     --execution-mode "$EXECUTION_MODE" || exit 1
 
-  INTENT_PATH="/tmp/orch_outbox_live/SENTINEL_EXEC/intent_${TS}.json"
+  # ---------------------------------------------------
+  # AUDIT APPEND (execution_intent.jsonl) + VERIFY + DEDUPE
+  # - UI readonly status reads: var/audit_chain/execution_intent.jsonl
+  # - Dedupe: skip if latest intent already appended
+  # ---------------------------------------------------
+  INTENT_PATH="/tmp/orch_outbox_live/SENTINEL_EXEC/intent_${TS_COMPACT}.json"
+  export AURALIS_AUDIT_PATH="$PWD/$AUDIT_EXECUTION_INTENT"
+
+  # --- extract latest intent event_id ---
+  LATEST_EID="$(python - <<PY
+import json
+from pathlib import Path
+p=Path("$INTENT_PATH")
+if not p.exists():
+    print("")
+    raise SystemExit
+j=json.loads(p.read_text(encoding="utf-8"))
+print(j.get("event_id",""))
+PY
+)"
+
+  # --- get last appended event_id (robust reverse scan) ---
+  LAST_APPENDED_EID="$(python - <<'PY'
+import json
+from pathlib import Path
+
+p=Path("var/audit_chain/execution_intent.jsonl")
+if not p.exists():
+    print("")
+    raise SystemExit
+
+lines=[ln.strip() for ln in p.read_text(encoding="utf-8", errors="ignore").splitlines() if ln.strip()]
+
+for ln in reversed(lines):
+    try:
+        j=json.loads(ln)
+    except Exception:
+        continue
+    payload=j.get("payload") or {}
+    print(payload.get("event_id",""))
+    break
+else:
+    print("")
+PY
+)"
+
+  if [ -n "$LATEST_EID" ] && [ "$LATEST_EID" = "$LAST_APPENDED_EID" ]; then
+    echo "[audit] skip: already appended latest intent ($LATEST_EID)"
+  else
+    PYTHONPATH="$PWD" python tools/audit_append_orch_outbox_chain.py \
+      --outbox-item "$INTENT_PATH" \
+      --ts 0 \
+      --event-id "LOCAL:SENTINEL_EXEC:INTENT_APPEND:${TS_COMPACT}" || exit 1
+
+    PYTHONPATH="$PWD" python tools/audit/verify_chain.py \
+      --schema "$PWD/sdk/schemas/audit_event.v1.json" \
+      --chain "$AURALIS_AUDIT_PATH" || exit 1
+
+    echo "[audit] OK: appended + verified execution_intent chain -> $AURALIS_AUDIT_PATH"
+  fi
 
   # ---------------------------------------------------
   # LIVE EXECUTOR CALL (HTTP) — gated + persistent fail-streak

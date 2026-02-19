@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from tools.gates.gate_live_execution import validate_or_record
 import json
 import os
 from datetime import datetime, timezone
@@ -16,6 +16,10 @@ router = APIRouter()
 OUTBOX_DIR = Path(os.getenv("SENTINEL_OUTBOX_DIR", "/tmp/orch_outbox_live/SENTINEL_EXEC"))
 AUDIT_ROOT = Path(os.getenv("AURALIS_AUDIT_PATH", str(Path.cwd() / "var/audit_chain")))
 AUDIT_EXEC_INTENT = Path(os.getenv("AUDIT_EXECUTION_INTENT_JSONL", str(AUDIT_ROOT / "execution_intent.jsonl")))
+
+
+def is_live_enabled() -> bool:
+    return os.getenv("LIVE_TRADING_ENABLED") == "true"
 
 
 
@@ -42,6 +46,10 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
 
     This is OBSERVER/EXECUTOR side; loop should be outbox-only by default.
     """
+    # hard fail-safe: default-disabled live trading kill switch
+    if not is_live_enabled():
+        return {"status": "blocked_by_env", "reason": "LIVE_TRADING_DISABLED"}
+
     # optional hard kill-switch (can be wired to UI later)
     if os.getenv("EXECUTOR_KILL_SWITCH", "0") == "1":
         raise HTTPException(status_code=423, detail="executor_kill_switch=1")
@@ -53,6 +61,21 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
     # fail-closed: accept only execution_intent.v1 payloads
     if intent.get("schema") != "execution_intent.v1":
         raise HTTPException(status_code=400, detail="invalid_schema_expected_execution_intent_v1")
+
+    # 🔒 LIVE gate enforcement (optional; fail-closed when enabled)
+    if os.getenv("LIVE_GATE_ENFORCE", "0") == "1":
+        try:
+            ok = validate_or_record(
+                intent,
+                exceptions_dir="data/live_exceptions",
+                last_price_usd=intent.get("last_price_usd"),
+            )
+            if ok is False:
+                raise HTTPException(status_code=403, detail="live_gate_blocked")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"live_gate_error:{type(e).__name__}")
     if intent.get("domain") not in ("SENTINEL_EXEC",):
         raise HTTPException(status_code=400, detail="invalid_domain_expected_SENTINEL_EXEC")
 
