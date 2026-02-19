@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -97,21 +96,7 @@ def append_judgment(
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(j, ensure_ascii=False, separators=(",", ":"))
 
-    # atomic-ish append: open in append mode, single write
     with ledger_path.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
 
     return j
-
-
-def main() -> None:
-    # minimal CLI: primarily for smoke/testing/manual injections
-    verdict = os.getenv("JDG_VERDICT", "INFO")
-    actor = os.getenv("JDG_ACTOR", "local")
-    reason = os.getenv("JDG_REASON")
-    out = append_judgment(verdict=verdict, actor=actor, reason=reason)
-    print(json.dumps(out, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    main()
