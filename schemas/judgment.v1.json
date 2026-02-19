@@ -1,0 +1,33 @@
+{
+  "$id": "schema://judgment.v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "judgment_id", "created_at", "actor", "verdict"],
+  "properties": {
+    "schema": { "const": "judgment.v1" },
+    "judgment_id": { "type": "string", "minLength": 8 },
+    "created_at": { "type": "string", "minLength": 10 },
+    "actor": { "type": "string", "minLength": 1 },
+    "verdict": { "type": "string", "enum": ["ALLOW", "BLOCK", "WARN", "INFO"] },
+    "reason": { "type": "string" },
+
+    "domain": { "type": "string" },
+    "symbol": { "type": "string" },
+    "side": { "type": "string", "enum": ["LONG", "SHORT", "FLAT"] },
+
+    "policy_sha256": { "type": "string" },
+
+    "refs": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "execution_intent_hash": { "type": "string" },
+        "decision_id": { "type": "string" },
+        "plan_id": { "type": "string" },
+        "score_snapshot_ref": { "type": "string" }
+      }
+    },
+
+    "metrics": { "type": "object", "additionalProperties": true }
+  }
+}
