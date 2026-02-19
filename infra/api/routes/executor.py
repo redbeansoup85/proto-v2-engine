@@ -83,6 +83,9 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
                 last_price_usd=intent.get("last_price_usd"),
             )
             if ok is False:
+                mode = os.getenv("LIVE_GATE_MODE", "hard").lower()
+                if mode == "soft":
+                    return {"status": "blocked_by_gate", "reason": f"live_gate_blocked:{capsule_sha256}"}
                 raise HTTPException(status_code=403, detail=f"live_gate_blocked:{capsule_sha256}")
         except HTTPException:
             raise
