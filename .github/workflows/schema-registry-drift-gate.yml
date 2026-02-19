@@ -1,3 +1,4 @@
+# gatekit_template: schema-registry-drift-gate
 name: schema-registry-drift-gate
 
 on:
