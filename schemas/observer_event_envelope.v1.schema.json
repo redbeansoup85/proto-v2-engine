@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "observer_event_envelope.v1.schema.json",
+  "title": "observer_event_envelope.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "event_id",
+    "ts_utc",
+    "provider",
+    "payload",
+    "hash"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ts_utc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "provider_class"
+      ],
+      "properties": {
+        "provider_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_class": {
+          "type": "string",
+          "enum": [
+            "SIGNAL_ONLY"
+          ]
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_id",
+        "schema_version",
+        "body"
+      ],
+      "properties": {
+        "schema_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "object"
+        }
+      }
+    },
+    "hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hash_alg",
+        "payload_hash"
+      ],
+      "properties": {
+        "hash_alg": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload_hash": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
