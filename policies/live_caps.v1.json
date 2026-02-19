@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "policy_id": "live_caps.v1",
+  "notes": "LIVE gate enforcement capsule. Executor computes sha256 and attaches to outcomes (fail-closed when required).",
+  "allow_domains": ["SENTINEL_EXEC"],
+  "require_last_price_usd": false
+}

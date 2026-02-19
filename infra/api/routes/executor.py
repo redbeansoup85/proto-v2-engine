@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 from tools.gates.gate_live_execution import validate_or_record
 import json
 import os
@@ -64,6 +65,17 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
 
     # 🔒 LIVE gate enforcement (optional; fail-closed when enabled)
     if os.getenv("LIVE_GATE_ENFORCE", "0") == "1":
+        # 📦 LIVE policy capsule (fail-closed when enforcement enabled)
+        capsule_path = Path("policies/live_caps.v1.json")
+        try:
+            capsule_bytes = capsule_path.read_bytes()
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="live_capsule_missing")
+        capsule_sha256 = hashlib.sha256(capsule_bytes).hexdigest()
+        try:
+            _capsule = json.loads(capsule_bytes.decode("utf-8"))
+        except Exception:
+            raise HTTPException(status_code=500, detail=f"live_capsule_invalid_json:{capsule_sha256}")
         try:
             ok = validate_or_record(
                 intent,
@@ -71,11 +83,11 @@ def execute_market(intent: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
                 last_price_usd=intent.get("last_price_usd"),
             )
             if ok is False:
-                raise HTTPException(status_code=403, detail="live_gate_blocked")
+                raise HTTPException(status_code=403, detail=f"live_gate_blocked:{capsule_sha256}")
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"live_gate_error:{type(e).__name__}")
+            raise HTTPException(status_code=500, detail=f"live_gate_error:{type(e).__name__}:{capsule_sha256}")
     if intent.get("domain") not in ("SENTINEL_EXEC",):
         raise HTTPException(status_code=400, detail="invalid_domain_expected_SENTINEL_EXEC")
 
