@@ -1,0 +1,25 @@
+{
+  "lock_version": "1.0",
+  "generated_at_utc": "2026-02-19T04:42:39Z",
+  "allowed_provider_schema_ids": [
+    "sentinel_raw_snapshot.v1",
+    "sentinel_trade_intent.v1",
+    "sentinel_signal_meta.v1",
+    "score_snapshot.v1",
+    "pattern_event.v1"
+  ],
+  "envelope_schema": {
+    "schema_id": "observer_event_envelope.v1",
+    "schema_file": "schemas/observer_event_envelope.v1.schema.json",
+    "sha256": "fc706d4bee67f96be61f181c5cc26dbc791663e53d16ee4cd2c4e019c45b8450"
+  },
+  "provider_gate": {
+    "name": "provider_ingest_gate.v1",
+    "file": "tools/gates/gate_provider_ingest.py",
+    "sha256": "02810b56fb792a284fdbab986d3f2f32da4dd58d0b9ed0e0b5abf58f43a2f152"
+  },
+  "constitution": {
+    "file": "docs/LOCK-INTERFACE-CONSTITUTION.md",
+    "sha256": "31d5a56a5f618d0ed4ae898b4f029f8c525dd0a860b48f87d8208ecaeb712c14"
+  }
+}
