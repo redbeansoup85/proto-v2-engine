@@ -135,6 +135,11 @@ if (!res.ok) throw new Error("Fetch error");
   };
 
   const requestKillSwitch = async () => {
+    if (automationLocked) {
+      setKillResult("automation locked (fail-closed)");
+      setShowKillConfirm(false);
+      return;
+    }
     setKillBusy(true);
     setKillResult(null);
     try {
@@ -255,7 +260,8 @@ if (!res.ok) throw new Error("Fetch error");
                 Cancel
               </button>
               <button
-                disabled={killBusy}
+                disabled={killBusy || automationLocked}
+                title={automationLocked ? "automation locked (fail-closed)" : undefined}
                 onClick={requestKillSwitch}
                 style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid rgba(255,60,60,0.45)", background: "rgba(255,60,60,0.25)", color: "white", fontWeight: 700 }}
               >

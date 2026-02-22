@@ -55,14 +55,18 @@ def _reset_kill_switch(monkeypatch):
 
 def test_live_kill_switch_blocks_when_env_missing(monkeypatch) -> None:
     monkeypatch.delenv("LIVE_TRADING_ENABLED", raising=False)
-    out = executor_route.execute_market({})
-    assert out == {"status": "blocked_by_env", "reason": "LIVE_TRADING_DISABLED"}
+    with pytest.raises(HTTPException) as exc:
+        executor_route.execute_market({})
+    assert exc.value.status_code == 423
+    assert "live_trading_disabled" in str(exc.value.detail)
 
 
 def test_live_kill_switch_blocks_when_env_false(monkeypatch) -> None:
     monkeypatch.setenv("LIVE_TRADING_ENABLED", "false")
-    out = executor_route.execute_market(_valid_intent())
-    assert out == {"status": "blocked_by_env", "reason": "LIVE_TRADING_DISABLED"}
+    with pytest.raises(HTTPException) as exc:
+        executor_route.execute_market(_valid_intent())
+    assert exc.value.status_code == 423
+    assert "live_trading_disabled" in str(exc.value.detail)
 
 
 def test_live_kill_switch_allows_path_when_env_true(monkeypatch) -> None:
