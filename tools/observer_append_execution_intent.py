@@ -72,6 +72,18 @@ def main() -> int:
 
     intent = json.loads(intent_path.read_text(encoding="utf-8"))
     prev_hash = _read_last_hash(out_path)
+    regime = intent.get("risk_regime")
+    regime_ref = None
+    if isinstance(regime, dict):
+        regime_ref = {
+            "ref_kind": "RISK_REGIME",
+            "ref": {
+                "current": regime.get("current"),
+                "target": regime.get("target"),
+                "missing": regime.get("missing", []),
+                "cooldown_remaining_ms": regime.get("cooldown_remaining_ms", 0),
+            },
+        }
 
     now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     record = {
@@ -83,6 +95,7 @@ def main() -> int:
         "event_kind": "execution_intent",
         "ts_append_iso": now_iso,
         "payload": intent,
+        "evidence_refs": [regime_ref] if regime_ref else [],
         "chain": {"prev_hash": prev_hash, "hash": None},
     }
 
